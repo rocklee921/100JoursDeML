@@ -22,7 +22,30 @@ const addDays = (s, n) => {
 };
 const diffDays = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 86400000);
 const today = () => ymd(new Date());
-const vibrate = (p) => navigator.vibrate && navigator.vibrate(p);
+// ---------- Fonctions natives (appli iPhone via Capacitor) ----------
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const plugin = (n) => (NATIVE && window.Capacitor.Plugins ? window.Capacitor.Plugins[n] : null);
+const vibrate = (p) => {
+  const H = plugin("Haptics");
+  if (H) {
+    const total = Array.isArray(p) ? p.reduce((a, b) => a + b, 0) : p;
+    H.impact({ style: total > 150 ? "HEAVY" : total > 20 ? "MEDIUM" : "LIGHT" }).catch(() => {});
+  } else if (navigator.vibrate) navigator.vibrate(p);
+};
+
+// Rappels quotidiens (notifications locales, sans serveur).
+async function scheduleReminders() {
+  const N = plugin("LocalNotifications");
+  if (!N || !state) return;
+  await N.cancel({ notifications: [{ id: 1 }, { id: 2 }] }).catch(() => {});
+  if (!state.reminders || !state.reminders.on) return;
+  const [mh, mm] = (state.answers.wake || "07:00").split(":").map(Number);
+  const [eh, em] = (state.reminders.evening || "20:30").split(":").map(Number);
+  await N.schedule({ notifications: [
+    { id: 1, title: "[SYSTÈME] Nouvelle journée", body: "Tes quêtes du jour sont disponibles. Lève-toi, chasseur.", schedule: { on: { hour: mh, minute: mm }, allowWhileIdle: true } },
+    { id: 2, title: "[SYSTÈME] Rappel", body: "Valide tes quêtes avant minuit pour garder ta série.", schedule: { on: { hour: eh, minute: em }, allowWhileIdle: true } },
+  ] });
+}
 
 function load() {
   try {
@@ -1268,7 +1291,8 @@ function viewGuild() {
       : d.board.length ? d.board.map((p, k) => boardRow(p, k, val)).join("")
       : `<p class="sub">${b === "friends" ? "Ajoute un ami avec son pseudo pour commencer un classement." : "Personne pour l'instant. Sois le premier !"}</p>`}</section>
     ${d.outgoing.length ? `<p class="sub small">En attente : ${d.outgoing.map((p) => "@" + esc(p.username)).join(", ")}</p>` : ""}
-    <button class="row-btn danger" data-action="logout">Se déconnecter</button>`;
+    <button class="row-btn" data-action="logout">Se déconnecter</button>
+    <button class="row-btn danger" data-action="delaccount">Supprimer mon compte</button>`;
 }
 
 async function guildLoad() {
@@ -1512,6 +1536,9 @@ function viewProfile() {
     <section class="card">
       <h3>Réglages</h3>
       <div class="theme-pick"><span>Interface</span><div class="seg wide">${Object.entries(THEMES).map(([k, n]) => `<button class="${(state.theme || "forge") === k ? "on" : ""}" data-action="theme" data-v="${k}">${n}</button>`).join("")}</div></div>
+      ${NATIVE ? `<button class="row-btn" data-action="reminders">${ico("bolt")} Rappels quotidiens : ${state.reminders && state.reminders.on ? "activés" : "désactivés"}</button>` : ""}
+      <a class="row-btn" href="privacy.html" target="_blank" rel="noopener">${ico("shield")} Politique de confidentialité</a>
+      ${cloud.user ? `<button class="row-btn danger" data-action="delaccount">${ico("lock")} Supprimer mon compte</button>` : ""}
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
       <button class="row-btn" data-action="how">📜 Pourquoi ${CHALLENGE_DAYS} jours ?</button>
       <button class="row-btn danger" data-action="reset">↺ Recommencer l'épreuve</button>
@@ -1888,6 +1915,33 @@ const actions = {
     avatarInput.value = "";
     avatarInput.click();
   },
+  async reminders() {
+    const N = plugin("LocalNotifications");
+    if (!N) return;
+    state.reminders = state.reminders || { evening: "20:30" };
+    if (!state.reminders.on) {
+      const p = await N.requestPermissions().catch(() => ({ display: "denied" }));
+      if (p.display !== "granted") { toast("Autorise les notifications dans Réglages > Soul Leveling."); return; }
+    }
+    state.reminders.on = !state.reminders.on;
+    save();
+    await scheduleReminders();
+    toast(state.reminders.on ? "Rappels activés" : "Rappels désactivés");
+    render();
+  },
+  delaccount() {
+    ask("Supprimer définitivement ton compte ? Ton profil, tes amis et tes scores en ligne seront effacés. Cette action est irréversible.", "Supprimer", async () => {
+      try {
+        await cloud.api.deleteAccount();
+        cloud.user = cloud.profile = null;
+        ask("Compte supprimé. Effacer aussi ta progression sur ce téléphone ?", "Tout effacer", () => {
+          try { localStorage.removeItem(STORAGE_KEY); } catch {}
+          state = null; ui.screen = "welcome"; render();
+        });
+        render();
+      } catch (e) { toast(authMsg(e.message)); }
+    });
+  },
   authmode(el) {
     ui.authMode = el.dataset.v;
     ui.authError = ui.authInfo = "";
@@ -2078,6 +2132,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 cloudBoot();
+scheduleReminders();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});

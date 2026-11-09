@@ -1,0 +1,21 @@
+{
+  "name": "soul-leveling-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Appli iPhone Soul Leveling (Capacitor) construite à partir de ../forge-app",
+  "scripts": {
+    "web": "node scripts/copy-web.mjs",
+    "sync": "node scripts/copy-web.mjs && cap sync ios",
+    "open": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

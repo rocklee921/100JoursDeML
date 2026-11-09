@@ -1,0 +1,13 @@
+{
+  "appId": "com.rocklee921.levelapp",
+  "appName": "Soul Leveling",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#050914",
+    "scheme": "Soul Leveling"
+  },
+  "plugins": {
+    "LocalNotifications": { "iconColor": "#38d6ff" }
+  }
+}

@@ -102,3 +102,14 @@ grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.saves, public.friendships to authenticated;
 grant select, insert, update on public.season_progress to authenticated;
 grant select on public.season_board to authenticated;
+
+-- ---------- Suppression de compte (exigée par l'App Store) ----------
+-- Efface l'utilisateur connecté ; profil, sauvegarde, amitiés et saisons partent en cascade.
+create or replace function public.delete_my_account() returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'non connecté'; end if;
+  delete from auth.users where id = auth.uid();
+end $$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

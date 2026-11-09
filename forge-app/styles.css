@@ -853,3 +853,5 @@ body.impact { filter: invert(1) contrast(1.4); }
 .g-who small { color: var(--muted); font-size: 12px; }
 .g-rank .emblem { filter: none; }
 .g-val { font: 700 12.5px var(--mono); font-style: normal; color: var(--gold); white-space: nowrap; }
+a.row-btn { color: var(--text); text-decoration: none; }
+.row-btn .ico { margin-right: 6px; color: var(--gold); }

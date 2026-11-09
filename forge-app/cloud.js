@@ -38,6 +38,7 @@ function supabaseApi(sb) {
     },
     async signIn(email, password) { return fail(await sb.auth.signInWithPassword({ email, password })).user; },
     async signOut() { await sb.auth.signOut(); },
+    async deleteAccount() { fail(await sb.rpc("delete_my_account")); await sb.auth.signOut(); },
     async getProfile(id) { return fail(await sb.from("profiles").select(COLS).eq("id", id).maybeSingle()); },
     async createProfile(p) { return fail(await sb.from("profiles").insert(p).select(COLS).single()); },
     async updateProfile(id, p) { fail(await sb.from("profiles").update(p).eq("id", id)); },
