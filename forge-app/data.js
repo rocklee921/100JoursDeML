@@ -1,6 +1,7 @@
 // FORGE — données : questionnaire, catalogue de quêtes, rangs, attributs.
 
-const CHALLENGE_DAYS = 66;
+// Durée de l'épreuve : change ce nombre pour adapter toute l'appli.
+const CHALLENGE_DAYS = 100;
 
 const STATS = {
   FOR: { label: "Force", icon: "💪", color: "#ff6b4a" },
@@ -44,7 +45,7 @@ const QUIZ = [
     id: "name",
     type: "text",
     q: "Comment veux-tu qu'on t'appelle ?",
-    sub: "Ton nom de héros pour les 66 prochains jours.",
+    sub: "Ton nom de héros pour les 100 prochains jours.",
     placeholder: "Ton prénom ou pseudo",
   },
   {
@@ -368,7 +369,7 @@ const QUOTES = [
   "Tu n'as pas à être motivé. Tu dois juste commencer.",
   "Chaque quête validée est un vote pour la personne que tu deviens.",
   "Le fer devient acier sous les coups. Toi aussi.",
-  "Petit progrès chaque jour = grand résultat dans 66 jours.",
+  "Petit progrès chaque jour = grand résultat dans 100 jours.",
   "Personne ne viendra te sauver. Bonne nouvelle : tu n'en as pas besoin.",
   "Rate une journée, d'accord. Jamais deux de suite.",
 ];
@@ -386,3 +387,71 @@ const ARCHETYPES = {
   DIS: { name: "L'Architecte", icon: "📐", color: "#f4b740", text: "Tu sais ce que tu veux, il manque la structure. Les Architectes ne comptent pas sur la motivation : ils construisent des systèmes." },
 };
 const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
+
+// Bibliothèque : idées clés résumées avec nos mots.
+const BOOKS = [
+  { id: "atomic", title: "Atomic Habits", author: "James Clear", stat: "DIS", ideas: [
+    "Vise 1 % de mieux par jour : les petits gains se cumulent comme des intérêts.",
+    "Ne te fixe pas seulement des objectifs, construis des systèmes : ce sont eux qui produisent les résultats.",
+    "Chaque action est un vote pour l'identité que tu veux avoir. Pense « je suis un sportif », pas « je veux courir ».",
+  ] },
+  { id: "deepwork", title: "Deep Work", author: "Cal Newport", stat: "SAV", ideas: [
+    "La concentration sans distraction devient rare, donc précieuse.",
+    "Planifie des blocs de travail profond dans ton agenda comme des rendez-vous.",
+    "L'ennui s'entraîne : si tu prends ton téléphone à chaque attente, ton cerveau ne sait plus se concentrer.",
+  ] },
+  { id: "frankl", title: "Découvrir un sens à sa vie", author: "Viktor Frankl", stat: "FOI", ideas: [
+    "On peut tout enlever à un homme, sauf la liberté de choisir son attitude.",
+    "Celui qui a un « pourquoi » peut supporter presque n'importe quel « comment ».",
+    "Le sens se trouve dans une œuvre à accomplir, un amour à vivre, ou la manière de traverser la souffrance.",
+  ] },
+  { id: "mindset", title: "Mindset", author: "Carol Dweck", stat: "MEN", ideas: [
+    "Il y a deux états d'esprit : fixe (« je suis comme ça ») et de croissance (« je peux apprendre »).",
+    "L'échec n'est pas une identité, c'est une information.",
+    "Félicite l'effort et la stratégie, pas le talent, y compris quand tu te parles à toi-même.",
+  ] },
+  { id: "goggins", title: "Can't Hurt Me", author: "David Goggins", stat: "COU", ideas: [
+    "Quand tu crois être au bout, tu n'as utilisé qu'environ 40 % de tes capacités.",
+    "Garde une « boîte à cookies » : la liste de tes victoires passées, à relire quand ça devient dur.",
+    "Fais volontairement des choses inconfortables chaque jour pour durcir ton mental.",
+  ] },
+  { id: "power", title: "Le pouvoir des habitudes", author: "Charles Duhigg", stat: "DIS", ideas: [
+    "Toute habitude suit une boucle : signal, routine, récompense.",
+    "Pour changer une habitude, garde le signal et la récompense, remplace seulement la routine.",
+    "Certaines « habitudes clés » (le sport, par exemple) en entraînent beaucoup d'autres.",
+  ] },
+  { id: "why", title: "Pourquoi nous dormons", author: "Matthew Walker", stat: "ENE", ideas: [
+    "Le manque de sommeil dégrade la mémoire, l'humeur et la volonté bien plus qu'on ne le sent.",
+    "Des horaires réguliers comptent autant que la durée.",
+    "Une chambre fraîche, sombre et sans écran est la base d'un bon sommeil.",
+  ] },
+  { id: "carnegie", title: "Comment se faire des amis", author: "Dale Carnegie", stat: "SOC", ideas: [
+    "Intéresse-toi sincèrement aux autres plutôt que d'essayer d'être intéressant.",
+    "Retiens et utilise le prénom des gens : c'est le son le plus agréable pour eux.",
+    "Écoute davantage que tu ne parles, et laisse l'autre parler de ce qui compte pour lui.",
+  ] },
+];
+
+// Badges débloquables.
+const BADGES = [
+  { id: "s3", icon: "🔥", label: "3 jours", test: (m) => m.best >= 3 },
+  { id: "s7", icon: "🔥", label: "7 jours", test: (m) => m.best >= 7 },
+  { id: "s14", icon: "⚔️", label: "14 jours", test: (m) => m.best >= 14 },
+  { id: "s30", icon: "🛡️", label: "30 jours", test: (m) => m.best >= 30 },
+  { id: "s50", icon: "👑", label: "50 jours", test: (m) => m.best >= 50 },
+  { id: "s100", icon: "🏆", label: "100 jours", test: (m) => m.best >= 100 },
+  { id: "q50", icon: "✅", label: "50 quêtes", test: (m) => m.quests >= 50 },
+  { id: "q250", icon: "💎", label: "250 quêtes", test: (m) => m.quests >= 250 },
+  { id: "f60", icon: "⏱️", label: "1 h de focus", test: (m) => m.focus >= 60 },
+  { id: "f600", icon: "🧘", label: "10 h de focus", test: (m) => m.focus >= 600 },
+  { id: "j7", icon: "📓", label: "7 journaux", test: (m) => m.journal >= 7 },
+  { id: "b4", icon: "📚", label: "4 livres", test: (m) => m.books >= 4 },
+];
+
+const JOURNAL_PROMPTS = [
+  "Qu'est-ce qui t'a rendu fier/fière aujourd'hui ?",
+  "Qu'est-ce que tu as appris aujourd'hui ?",
+  "Qu'est-ce qui t'a freiné aujourd'hui, et comment l'éviter demain ?",
+  "Pour quoi es-tu reconnaissant(e) aujourd'hui ?",
+  "Quelle petite victoire veux-tu remporter demain ?",
+];

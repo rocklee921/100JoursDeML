@@ -1,5 +1,5 @@
 // Cache hors-ligne minimal : l'appli fonctionne sans réseau après la 1re visite.
-const CACHE = "forge-v3";
+const CACHE = "forge-v4";
 const FILES = ["./", "index.html", "styles.css", "data.js", "app.js", "icon.svg", "manifest.webmanifest"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))));
 self.addEventListener("activate", (e) =>

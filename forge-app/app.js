@@ -257,6 +257,7 @@ function totalXp() {
     for (const id in state.log[d]) xp += state.log[d][id].xp;
     if (dayValidated(d)) xp += DAY_BONUS;
   }
+  for (const e of state.extra || []) xp += e.xp;
   return xp;
 }
 const xpToNext = (lvl) => 80 + lvl * 25;
@@ -294,7 +295,39 @@ function bestStreak() {
 function statPoints() {
   const pts = Object.fromEntries(Object.keys(STATS).map((k) => [k, 0]));
   for (const d in state.log) for (const id in state.log[d]) pts[state.log[d][id].stat] += state.log[d][id].xp;
+  for (const e of state.extra || []) pts[e.stat] = (pts[e.stat] || 0) + e.xp;
   return pts;
+}
+
+// XP gagnée hors quêtes (outils). Limitée à `cap` gains par jour et par type.
+function awardExtra(kind, xp, stat, cap = 3, meta = {}) {
+  state.extra = state.extra || [];
+  const d = today();
+  if (state.extra.filter((e) => e.kind === kind && e.date === d).length >= cap) return false;
+  state.extra.push({ kind, xp, stat, date: d, ...meta });
+  save();
+  toast(`✦ +${xp} XP · ${STATS[stat].label}`);
+  setTimeout(checkLevelUp, 300);
+  return true;
+}
+function toast(html) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = html;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+function metrics() {
+  let quests = 0;
+  for (const d in state.log) quests += Object.keys(state.log[d]).length;
+  const extra = state.extra || [];
+  return {
+    best: bestStreak(),
+    quests,
+    focus: extra.filter((e) => e.kind === "focus").reduce((n, e) => n + (e.min || 0), 0),
+    journal: Object.keys(state.journal || {}).length,
+    books: new Set(extra.filter((e) => e.kind.startsWith("book-")).map((e) => e.kind)).size,
+  };
 }
 
 // ---------- Thèmes ----------
@@ -349,6 +382,7 @@ const BACK = `<svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stro
 const NAV = {
   quests: `<svg viewBox="0 0 24 24"><path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3-1-3 0-6 1-8z" fill="currentColor"/></svg>`,
   path: `<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  tools: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor"/><circle cx="17" cy="17" r="4" fill="currentColor"/></svg>`,
   profile: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7z" fill="currentColor"/></svg>`,
 };
 
@@ -377,11 +411,11 @@ function viewWelcome() {
     ${embers()}
     <div class="welcome-top">${LOGO}<div class="brand">FORGE</div></div>
     <div class="welcome-body">
-      <span class="pill">◆ L'ÉPREUVE DES 66 JOURS</span>
+      <span class="pill">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS</span>
       <h1>Forge la meilleure<br>version de <em>toi.</em></h1>
       <p class="lead">Des quêtes quotidiennes, de l'XP, des rangs à gravir. Ta vie devient ton terrain d'entraînement.</p>
       <button class="btn primary" data-action="start">Commencer l'épreuve</button>
-      <button class="link" data-action="how">Pourquoi 66 jours ?</button>
+      <button class="link" data-action="how">Pourquoi ${CHALLENGE_DAYS} jours ?</button>
     </div>
   </section>`;
 }
@@ -447,14 +481,14 @@ function viewAnalyzing() {
     ${embers()}
     <div class="sys-tag">[SYSTÈME] FORGE</div>
     <h2 class="big-title">Lecture de<br><em class="grad-text">ton dossier…</em></h2>
-    <p class="sub">Tes réponses deviennent un programme : quelles quêtes, à quelle intensité, et à quoi ressemble chacun de tes 66 jours.</p>
+    <p class="sub">Tes réponses deviennent un programme : quelles quêtes, à quelle intensité, et à quoi ressemble chacun de tes ${CHALLENGE_DAYS} jours.</p>
     <div class="pct" id="pct">0<small>%</small></div>
     <div class="pct-bar"><div id="pct-bar"></div></div>
     <ul class="analysis" id="analysis">
       <li>Choix de tes quêtes</li>
       <li>Équilibrage de la difficulté</li>
       <li>Calcul de ton profil</li>
-      <li>Génération de tes 66 jours</li>
+      <li>Génération de tes ${CHALLENGE_DAYS} jours</li>
     </ul>
   </section>`;
 }
@@ -548,15 +582,15 @@ function viewRadar() {
     <div class="sys-panel"><b>Analyse terminée.</b><span>Profil de ${esc(name)} généré.</span></div>
     <div class="radar-card">
       <h3>TA FICHE D'ATTRIBUTS</h3>
-      <p class="radar-help">${ui.radarDay === 66 ? "Pointillés : aujourd'hui. Plein : où ton programme te mène au jour 66." : "Ton profil aujourd'hui."}</p>
-      ${ui.radarDay === 66 ? radarSvg(projectScores(a, sc), weak, sc) : radarSvg(sc, weak)}
+      <p class="radar-help">${ui.radarDay === CHALLENGE_DAYS ? "Pointillés : aujourd'hui. Plein : où ton programme te mène au jour ${CHALLENGE_DAYS}." : "Ton profil aujourd'hui."}</p>
+      ${ui.radarDay === CHALLENGE_DAYS ? radarSvg(projectScores(a, sc), weak, sc) : radarSvg(sc, weak)}
       <div class="seg wide">
-        <button class="${ui.radarDay !== 66 ? "on" : ""}" data-action="radarday" data-v="1">Jour 1</button>
-        <button class="${ui.radarDay === 66 ? "on" : ""}" data-action="radarday" data-v="66">Jour 66</button>
+        <button class="${ui.radarDay !== CHALLENGE_DAYS ? "on" : ""}" data-action="radarday" data-v="1">Jour 1</button>
+        <button class="${ui.radarDay === CHALLENGE_DAYS ? "on" : ""}" data-action="radarday" data-v="${CHALLENGE_DAYS}">Jour ${CHALLENGE_DAYS}</button>
       </div>
       <div class="stat-chips" style="grid-template-columns:repeat(${AXES.length > 6 ? 4 : AXES.length},1fr)">${AXES.map((k) => {
-        const v = ui.radarDay === 66 ? projectScores(a, sc)[k] : sc[k];
-        return `<div class="stat-chip"><small>${STATS[k].label.slice(0, 3).toUpperCase()}</small><b style="color:${ui.radarDay === 66 ? "var(--gold)" : "var(--text)"}">${v}</b></div>`;
+        const v = ui.radarDay === CHALLENGE_DAYS ? projectScores(a, sc)[k] : sc[k];
+        return `<div class="stat-chip"><small>${STATS[k].label.slice(0, 3).toUpperCase()}</small><b style="color:${ui.radarDay === CHALLENGE_DAYS ? "var(--gold)" : "var(--text)"}">${v}</b></div>`;
       }).join("")}</div>
       <div class="weak-banner" style="--sc:${STATS[weak].color}">
         <span>${STATS[weak].icon}</span>
@@ -584,25 +618,24 @@ function viewArchetype() {
 
 function viewScience() {
   return `<section class="screen science">
-    <div class="sys-panel"><b>Pourquoi 66 jours ?</b><span>Ce que dit la recherche.</span></div>
+    <div class="sys-panel"><b>Pourquoi ${CHALLENGE_DAYS} jours ?</b><span>Ce que dit la recherche.</span></div>
     <div class="curve-card">
       <svg viewBox="0 0 320 190" class="curve">
         <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#ff5a36"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs>
         <line x1="20" y1="170" x2="310" y2="170" class="axis"/>
         <line x1="20" y1="10" x2="20" y2="170" class="axis"/>
-        <path d="M20 165 C 80 162, 110 150, 150 110 S 230 42, 290 36" class="c-path"/>
-        <line x1="85" y1="160" x2="85" y2="170" class="tick"/><text x="85" y="142" class="c-lbl muted" text-anchor="middle">J21</text>
-        <circle cx="85" cy="158" r="5" class="c-myth"/>
-        <circle cx="262" cy="40" r="7" class="c-dot"/>
-        <text x="262" y="24" class="c-lbl" text-anchor="middle">JOUR 66</text>
+        <path d="M20 165 C 70 162, 100 150, 140 110 S 200 48, 300 38" class="c-path"/>
+        <circle cx="75" cy="160" r="5" class="c-myth"/><text x="75" y="145" class="c-lbl muted" text-anchor="middle">J21</text>
+        <circle cx="190" cy="66" r="5" class="c-myth"/><text x="206" y="92" class="c-lbl muted" text-anchor="middle">J66</text>
+        <circle cx="284" cy="40" r="7" class="c-dot"/><text x="280" y="24" class="c-lbl" text-anchor="middle">JOUR ${CHALLENGE_DAYS}</text>
         <text x="300" y="185" class="c-axis" text-anchor="end">jours</text>
         <text x="26" y="20" class="c-axis">automatisme</text>
       </svg>
     </div>
     <h2 class="sci-title">Une habitude devient automatique selon une courbe, pas à une date magique.</h2>
-    <p class="sub">En 2009, une équipe de l'University College London a suivi 96 volontaires qui adoptaient une nouvelle habitude. Il a fallu en moyenne <b>66 jours</b> pour qu'elle devienne automatique, de 18 à 254 jours selon les personnes et les habitudes.</p>
-    <p class="sub">Les fameux « 21 jours » viennent d'un chirurgien des années 1960 qui observait ses patients : ce n'était pas une étude sur les habitudes.</p>
-    <p class="sub">Bonne nouvelle de la même étude : <b>rater un jour isolé ne change presque rien</b> au résultat. Ce qui compte, c'est de revenir.</p>
+    <p class="sub">En 2009, une équipe de l'University College London a suivi 96 volontaires qui adoptaient une nouvelle habitude. Il a fallu <b>66 jours en moyenne</b> pour qu'elle devienne automatique, mais de 18 à 254 jours selon les personnes et les habitudes.</p>
+    <p class="sub">${CHALLENGE_DAYS} jours, c'est te laisser le temps de dépasser la moyenne : même tes habitudes les plus dures ont le temps de s'ancrer.</p>
+    <p class="sub">Les fameux « 21 jours » viennent d'un chirurgien des années 1960 qui observait ses patients : ce n'était pas une étude sur les habitudes. Et bonne nouvelle : <b>rater un jour isolé ne change presque rien</b> au résultat. Ce qui compte, c'est de revenir.</p>
     <p class="source">Source : Lally, van Jaarsveld, Potts &amp; Wardle, « How are habits formed », <i>European Journal of Social Psychology</i>, 2009.</p>
     ${goBtn("howto", "Montre-moi comment ça marche")}
   </section>`;
@@ -619,7 +652,7 @@ function viewPact() {
     <div class="pact-paper">
       <p>Moi, <b>${esc(name)}</b>, je m'engage à mener mes quêtes chaque jour, jusqu'au <b>${end}</b>.</p>
       <p>Je ne cherche pas la perfection. Si je rate un jour, je ne rate jamais le deuxième.</p>
-      <p>Dans 66 jours, je serai fier/fière de la personne que je suis devenue.</p>
+      <p>Dans ${CHALLENGE_DAYS} jours, je serai fier/fière de la personne que je suis devenue.</p>
       <div class="pact-sign" id="sign">${esc(name)}</div>
     </div>
     <p class="sub small">Maintiens le bouton pour signer.</p>
@@ -665,7 +698,7 @@ function viewHowto() {
     <div class="rank-path">
       ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}"><span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span><small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
     </div>
-    <p class="sub">Tu commences rang <b>E</b>. En 66 jours, les plus réguliers atteignent le rang <b>B</b>.</p>
+    <p class="sub">Tu commences rang <b>E</b>. En ${CHALLENGE_DAYS} jours, les plus réguliers atteignent le rang <b>A</b>.</p>
     ${goBtn("reveal", "Voir ma semaine 1")}
   </section>`;
 }
@@ -681,7 +714,7 @@ function viewReveal() {
   return `<section class="screen reveal">
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
-    <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR 66</small><b>${fmt(endIso)}</b></div></div>
+    <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR ${CHALLENGE_DAYS}</small><b>${fmt(endIso)}</b></div></div>
     <div class="card recap">
       <h3>Créé à partir de tes réponses</h3>
       <div class="recap-row"><span>Tes priorités</span><b>${esc(focus)}</b></div>
@@ -703,10 +736,10 @@ function viewReveal() {
 
 // ---------- Application principale ----------
 function viewApp() {
-  const content = { quests: viewQuests, path: viewPath, profile: viewProfile }[ui.tab]();
+  const content = { quests: viewQuests, tools: viewTools, path: viewPath, profile: viewProfile }[ui.tab]();
   return `<section class="screen main">${content}</section>
-  <nav class="tabbar">${["quests", "path", "profile"]
-    .map((t) => `<button class="${ui.tab === t ? "on" : ""}" data-action="tab" data-v="${t}">${NAV[t]}<span>${{ quests: "Quêtes", path: "Parcours", profile: "Profil" }[t]}</span></button>`)
+  <nav class="tabbar">${["quests", "tools", "path", "profile"]
+    .map((t) => `<button class="${ui.tab === t ? "on" : ""}" data-action="tab" data-v="${t}">${NAV[t]}<span>${{ quests: "Quêtes", tools: "Outils", path: "Parcours", profile: "Profil" }[t]}</span></button>`)
     .join("")}</nav>`;
 }
 
@@ -770,6 +803,132 @@ function questCard(q) {
   </button>`;
 }
 
+// ---------- Outils ----------
+const timer = { kind: null, endAt: 0, total: 0, paused: 0, iv: null };
+const TOOLS = [
+  { id: "focus", icon: "⏱️", name: "Focus", sub: "Minuteur de concentration" },
+  { id: "breath", icon: "🌬️", name: "Respiration", sub: "Cohérence guidée, 2 min" },
+  { id: "journal", icon: "📓", name: "Journal", sub: "Une question par jour" },
+  { id: "library", icon: "📚", name: "Bibliothèque", sub: "Idées clés de livres" },
+];
+
+function viewTools() {
+  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary }[ui.tool]();
+  const m = metrics();
+  return `${hud()}
+    <h1 class="page-title">Outils</h1>
+    <div class="tools-grid">${TOOLS.map((t) => `<button class="tool" data-action="tool" data-v="${t.id}"><span>${t.icon}</span><b>${t.name}</b><small>${t.sub}</small></button>`).join("")}</div>
+    <div class="stats-row">
+      <div class="stat-box"><b>${m.focus}</b><small>min de focus</small></div>
+      <div class="stat-box"><b>${m.journal}</b><small>pages de journal</small></div>
+      <div class="stat-box"><b>${m.books}</b><small>livres lus</small></div>
+    </div>`;
+}
+
+const fmtTime = (s) => `${pad(Math.floor(s / 60))}:${pad(Math.floor(s % 60))}`;
+function timerLeft() {
+  if (!timer.kind) return 0;
+  return timer.paused ? timer.paused : Math.max(0, (timer.endAt - Date.now()) / 1000);
+}
+
+function viewFocus() {
+  const running = timer.kind === "focus";
+  const left = running ? timerLeft() : (ui.focusMin || 25) * 60;
+  const total = running ? timer.total : left;
+  const R = 110, C = 2 * Math.PI * R;
+  return `<div class="tool-view">
+    <div class="sys-tag">[SYSTÈME] MODE FOCUS</div>
+    <h2 class="big-title">Une seule chose.</h2>
+    <p class="sub">Téléphone face cachée. Tu gagnes 1 XP de Discipline par minute (max 3 sessions par jour).</p>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 260 260" class="ring"><circle cx="130" cy="130" r="${R}" class="ring-bg"/>
+        <circle cx="130" cy="130" r="${R}" class="ring-fg" id="ring-fg" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - left / total)}"/></svg>
+      <div class="ring-time"><b id="t-left">${fmtTime(left)}</b><small>${running ? (timer.paused ? "en pause" : "concentration") : "prêt"}</small></div>
+    </div>
+    ${running ? `<div class="ask-row"><button class="btn ghost" data-action="tstop">Abandonner</button>
+      <button class="btn primary" data-action="tpause">${timer.paused ? "Reprendre" : "Pause"}</button></div>`
+      : `<div class="seg wide">${[15, 25, 50].map((n) => `<button class="${(ui.focusMin || 25) === n ? "on" : ""}" data-action="fmin" data-v="${n}">${n} min</button>`).join("")}</div>
+      <button class="btn primary" data-action="tstart" data-v="focus">Lancer</button>`}
+  </div>`;
+}
+
+function viewBreath() {
+  const running = timer.kind === "breath";
+  return `<div class="tool-view">
+    <div class="sys-tag">[SYSTÈME] RESPIRATION</div>
+    <h2 class="big-title">Inspire. Expire.</h2>
+    <p class="sub">Cohérence cardiaque : 5 s d'inspiration, 5 s d'expiration, pendant 2 minutes. Calme le stress en quelques cycles.</p>
+    <div class="breath ${running ? "on" : ""}"><div class="breath-orb"></div><b id="b-phase">${running ? "Inspire" : "Prêt"}</b><small id="t-left">${running ? fmtTime(timerLeft()) : "02:00"}</small></div>
+    ${running ? `<button class="btn ghost" data-action="tstop">Arrêter</button>` : `<button class="btn primary" data-action="tstart" data-v="breath">Commencer</button>`}
+  </div>`;
+}
+
+function viewJournal() {
+  state.journal = state.journal || {};
+  const d = today();
+  const prompt = JOURNAL_PROMPTS[dayNumber() % JOURNAL_PROMPTS.length];
+  const past = Object.keys(state.journal).filter((k) => k !== d).sort().reverse().slice(0, 10);
+  const fmt = (iso) => parseYmd(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  return `<div class="tool-view left">
+    <div class="sys-tag">[SYSTÈME] JOURNAL · JOUR ${dayNumber()}</div>
+    <h2 class="j-prompt">${esc(prompt)}</h2>
+    <textarea id="journal-in" class="journal-in" rows="7" placeholder="Écris librement, personne d'autre ne le lira.">${esc(state.journal[d] || "")}</textarea>
+    <button class="btn primary" data-action="jsave">${state.journal[d] ? "Mettre à jour" : "Enregistrer (+15 XP)"}</button>
+    ${past.length ? `<h3 class="j-past-title">Pages précédentes</h3>${past.map((k) => `<div class="j-entry"><small>${fmt(k)}</small><p>${esc(state.journal[k])}</p></div>`).join("")}` : ""}
+  </div>`;
+}
+
+function viewLibrary() {
+  const read = new Set((state.extra || []).filter((e) => e.kind.startsWith("book-")).map((e) => e.kind.slice(5)));
+  if (ui.book) {
+    const b = BOOKS.find((x) => x.id === ui.book);
+    return `<div class="tool-view left">
+      <div class="sys-tag">${STATS[b.stat].icon} ${STATS[b.stat].label.toUpperCase()}</div>
+      <h2 class="big-title">${esc(b.title)}</h2><p class="sub">${esc(b.author)}</p>
+      <ol class="ideas">${b.ideas.map((i) => `<li>${esc(i)}</li>`).join("")}</ol>
+      <p class="sub small">Ces idées clés sont résumées avec nos mots. Pour aller plus loin, lis le livre !</p>
+      ${read.has(b.id) ? `<button class="btn ghost" data-action="book" data-v="">✓ Déjà lu · retour</button>` : `<button class="btn primary" data-action="bookdone" data-v="${b.id}">J'ai lu ces idées (+20 XP)</button>`}
+    </div>`;
+  }
+  return `<div class="tool-view left">
+    <div class="sys-tag">[SYSTÈME] BIBLIOTHÈQUE</div>
+    <h2 class="big-title">3 idées, 3 minutes.</h2>
+    <div class="books">${BOOKS.map((b) => `<button class="book ${read.has(b.id) ? "read" : ""}" data-action="book" data-v="${b.id}" style="--sc:${STATS[b.stat].color}">
+      <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].icon + " " + STATS[b.stat].label}</em></button>`).join("")}</div>
+  </div>`;
+}
+
+function startTimer(kind) {
+  const secs = kind === "breath" ? 120 : (ui.focusMin || 25) * 60;
+  Object.assign(timer, { kind, total: secs, endAt: Date.now() + secs * 1000, paused: 0 });
+  clearInterval(timer.iv);
+  timer.iv = setInterval(tickTimer, 250);
+  render();
+}
+function stopTimer() {
+  clearInterval(timer.iv);
+  timer.kind = null;
+}
+function tickTimer() {
+  const left = timerLeft();
+  const el = document.getElementById("t-left");
+  if (el) el.textContent = fmtTime(Math.ceil(left));
+  const fg = document.getElementById("ring-fg");
+  if (fg) fg.style.strokeDashoffset = 2 * Math.PI * 110 * (1 - left / timer.total);
+  if (timer.kind === "breath") {
+    const ph = document.getElementById("b-phase");
+    if (ph) ph.textContent = Math.floor((timer.total - left) / 5) % 2 === 0 ? "Inspire" : "Expire";
+  }
+  if (left <= 0) {
+    const kind = timer.kind, min = Math.round(timer.total / 60);
+    stopTimer();
+    vibrate([60, 80, 60]);
+    if (kind === "focus") awardExtra("focus", min, "DIS", 3, { min });
+    else awardExtra("breath", 15, "MEN", 3);
+    render();
+  }
+}
+
 function viewPath() {
   const day = dayNumber();
   const xp = totalXp();
@@ -799,8 +958,8 @@ function viewPath() {
       <div class="stat-box"><b>${questsDone}</b><small>quêtes</small></div>
     </div>
     <section class="card">
-      <h3>Les 66 jours</h3>
-      <div class="grid66">${cells}</div>
+      <h3>Les ${CHALLENGE_DAYS} jours</h3>
+      <div class="grid-days">${cells}</div>
       <div class="legend"><span><i class="win"></i>Validé</span><span><i class="partial"></i>Partiel</span><span><i class="miss"></i>Manqué</span></div>
     </section>
     <section class="card">
@@ -808,6 +967,13 @@ function viewPath() {
       ${Object.entries(STATS)
         .map(([k, s]) => `<div class="attr"><span>${s.icon} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
         .join("")}
+    </section>
+    <section class="card">
+      <h3>Badges</h3>
+      <div class="badges">${(() => { const m = metrics(); return BADGES.map((b) => {
+        const got = b.test(m);
+        return `<div class="badge ${got ? "got" : ""}"><span>${got ? b.icon : "🔒"}</span><small>${b.label}</small></div>`;
+      }).join(""); })()}</div>
     </section>
     <section class="card">
       <h3>Rangs</h3>
@@ -850,7 +1016,7 @@ function viewProfile() {
       <h3>Réglages</h3>
       <button class="row-btn" data-action="theme">🎨 Interface : ${state.theme === "matrix" ? "Matrice" : "Système"} (changer)</button>
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
-      <button class="row-btn" data-action="how">📜 Pourquoi 66 jours ?</button>
+      <button class="row-btn" data-action="how">📜 Pourquoi ${CHALLENGE_DAYS} jours ?</button>
       <button class="row-btn danger" data-action="reset">↺ Recommencer l'épreuve</button>
     </section>
     <p class="foot">Tes données restent sur ton appareil.</p>`;
@@ -892,8 +1058,8 @@ const HELP_HTML = `<div class="sys-tag">[SYSTÈME] TU N'ES PAS SEUL(E)</div>
   <p class="sub small">FORGE est un outil de motivation, pas un soin. Il ne remplace pas un professionnel de santé.</p>`;
 
 const HOW_HTML = `<div class="sys-tag">[SYSTÈME] LE PRINCIPE</div>
-  <h2>Pourquoi 66 jours ?</h2>
-  <p class="sub">Une étude de l'University College London (Lally et al., 2009) a mesuré qu'il faut en moyenne <b>66 jours</b> pour qu'un comportement devienne automatique.</p>
+  <h2>Pourquoi ${CHALLENGE_DAYS} jours ?</h2>
+  <p class="sub">Une étude de l'University College London (Lally et al., 2009) a mesuré qu'il faut en moyenne 66 jours, et parfois bien plus, pour qu'un comportement devienne automatique. ${CHALLENGE_DAYS} jours te laissent la marge pour que tes nouvelles habitudes tiennent vraiment.</p>
   <p class="sub">Chaque jour, tu reçois des quêtes. Valide-en au moins 70 % pour garder ta série. Gagne de l'XP, monte de niveau, gravis les rangs de <b>Étincelle</b> à <b>Légende</b>.</p>
   <p class="sub">Rater une journée n'efface rien : l'important est de ne jamais en rater deux de suite.</p>`;
 
@@ -993,6 +1159,48 @@ const actions = {
   theme() {
     state.theme = state.theme === "matrix" ? "forge" : "matrix";
     save();
+    render();
+  },
+  tool(el) {
+    ui.tool = el.dataset.v || null;
+    ui.book = null;
+    render();
+  },
+  fmin(el) {
+    ui.focusMin = Number(el.dataset.v);
+    render();
+  },
+  tstart(el) {
+    startTimer(el.dataset.v);
+  },
+  tpause() {
+    if (timer.paused) { timer.endAt = Date.now() + timer.paused * 1000; timer.paused = 0; }
+    else timer.paused = timerLeft();
+    render();
+  },
+  tstop() {
+    stopTimer();
+    render();
+  },
+  jsave() {
+    const txt = document.getElementById("journal-in").value.trim();
+    if (!txt) return;
+    state.journal = state.journal || {};
+    const first = !state.journal[today()];
+    state.journal[today()] = txt;
+    save();
+    if (first) awardExtra("journal", 15, "MEN", 1);
+    else toast("✓ Journal mis à jour");
+    render();
+  },
+  book(el) {
+    ui.book = el.dataset.v || null;
+    render();
+  },
+  bookdone(el) {
+    const b = BOOKS.find((x) => x.id === el.dataset.v);
+    awardExtra("book-" + b.id, 20, b.stat, 1);
+    ui.book = null;
     render();
   },
   radarday(el) {

@@ -195,7 +195,7 @@ blockquote { margin-top: 26px; color: var(--muted); font-style: italic; text-ali
 .stat-box small { color: var(--muted); font-size: 11px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
 .card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
-.grid66 { display: grid; grid-template-columns: repeat(11, 1fr); gap: 5px; }
+.grid-days { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
 .cell { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-family: var(--mono); font-size: 9px; color: var(--faint); background: var(--bg2); }
 .cell.win { background: var(--grad); color: var(--on-accent); }
 .cell.partial { background: color-mix(in srgb, var(--gold) 25%, transparent); color: var(--gold); }
@@ -408,3 +408,55 @@ blockquote { margin-top: 26px; color: var(--muted); font-style: italic; text-ali
 .btn.ghost { background: var(--card2); color: var(--text); }
 .btn.danger-btn { background: #f87171; color: #1a0505; box-shadow: none; }
 :root { color-scheme: dark; }
+
+/* ----- Outils ----- */
+.tabbar button { padding: 4px 8px; }
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.tool { text-align: left; padding: 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; transition: transform .1s; }
+.tool:active { transform: scale(.97); }
+.tool span { font-size: 28px; margin-bottom: 6px; }
+.tool b { font-family: var(--display); font-size: 16px; }
+.tool small { color: var(--muted); font-size: 12px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+.back-link svg { width: 18px; height: 18px; }
+.tool-view { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+.tool-view.left { align-items: stretch; text-align: left; }
+.tool-view .big-title { margin: 0; }
+.tool-view .sys-tag { margin: 0; }
+.tool-view .btn { width: 100%; }
+.tool-view .ask-row { width: 100%; }
+.ring-wrap { position: relative; width: 240px; height: 240px; margin: 10px 0; }
+.ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--card2); stroke-width: 10; }
+.ring-fg { fill: none; stroke: var(--ember); stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 8px var(--ember)); transition: stroke-dashoffset .25s linear; }
+.ring-time { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ring-time b { font-family: var(--display); font-weight: 800; font-size: 50px; font-variant-numeric: tabular-nums; }
+.ring-time small { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+.breath { position: relative; width: 240px; height: 240px; display: grid; place-content: center; text-align: center; margin: 10px 0; }
+.breath-orb { position: absolute; inset: 30px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--gold) 55%, transparent), color-mix(in srgb, var(--ember) 25%, transparent) 60%, transparent 70%); transform: scale(.55); }
+.breath.on .breath-orb { animation: breathe 10s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(.55); } 50% { transform: scale(1.08); } }
+.breath b { position: relative; font-family: var(--display); font-size: 26px; }
+.breath small { position: relative; font-family: var(--mono); color: var(--muted); }
+.j-prompt { font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.3; text-wrap: balance; }
+.journal-in { width: 100%; padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); color: var(--text); font: 15px/1.5 var(--body); resize: vertical; outline: none; }
+.journal-in:focus { border-color: var(--gold); }
+.j-past-title { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-top: 10px; }
+.j-entry { padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.j-entry small { color: var(--muted); font-size: 12px; text-transform: capitalize; }
+.j-entry p { margin-top: 6px; line-height: 1.5; white-space: pre-wrap; font-size: 14px; }
+.books { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.book { text-align: left; padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--sc); display: flex; flex-direction: column; gap: 4px; min-height: 120px; }
+.book b { font-family: var(--display); font-size: 14.5px; line-height: 1.25; }
+.book small { color: var(--muted); font-size: 12px; }
+.book em { margin-top: auto; font-style: normal; font-family: var(--mono); font-size: 10.5px; color: var(--sc); }
+.book.read { opacity: .6; }
+.ideas { display: flex; flex-direction: column; gap: 12px; padding-left: 0; list-style: none; counter-reset: idea; }
+.ideas li { counter-increment: idea; position: relative; padding: 14px 14px 14px 52px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); line-height: 1.5; }
+.ideas li::before { content: counter(idea); position: absolute; left: 14px; top: 13px; width: 26px; height: 26px; border-radius: 50%; background: var(--grad); color: var(--on-accent); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 13px; }
+.badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.badge { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: 12px; background: var(--bg2); opacity: .45; }
+.badge span { font-size: 24px; width: 44px; height: 44px; display: grid; place-items: center; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: var(--card2); }
+.badge small { font-size: 10.5px; color: var(--muted); text-align: center; }
+.badge.got { opacity: 1; }
+.badge.got span { background: var(--grad); }
