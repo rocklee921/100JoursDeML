@@ -64,6 +64,14 @@ function buildProgram(a) {
   fromSpecial(a.enemy);
   if (a.mindIssue) fromSpecial(a.mindIssue);
 
+  // Au moins une quête qui travaille l'attribut le plus faible.
+  const weak = weakestAxis(profileScores(a));
+  const equipOk = (c) => !c.needs || (a.equipment || []).includes(c.needs);
+  if (!quests.some((q) => q.stat === weak)) {
+    const c = CATALOG.find((c) => c.stat === weak && equipOk(c));
+    if (c) add({ id: c.id, title: c.t(c.amt.length ? c.amt[i - 1] : null), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+  }
+
   // Remplissage équilibré entre les domaines choisis.
   const equip = a.equipment || [];
   const focus = a.focus && a.focus.length ? a.focus : ["discipline"];
@@ -86,6 +94,98 @@ function buildProgram(a) {
   }
   return quests;
 }
+
+// ---------- Profil de départ (scores 0-100 par axe) ----------
+function profileScores(a) {
+  const clamp = (n) => Math.max(10, Math.min(90, Math.round(n)));
+  const steps = Number(a.steps) || 4500;
+  const sleep = Number(a.sleep) || 7.5;
+  const quit = (a.quit || []).filter((q) => q !== "none");
+  const s = {
+    FOR: 15 + Math.min(steps, 12000) / 180 + ((a.equipment || []).some((e) => e !== "none") ? 8 : 0) + (a.coping === "sport" ? 10 : 0),
+    MEN: { great: 80, good: 65, meh: 48, sad: 28, crisis: 15 }[a.life] ?? 50,
+    ENE: { 4.5: 22, 5.5: 38, 7.5: 70, 9: 60 }[sleep] ?? 50,
+    SOC: 58,
+    SAV: 52,
+    DIS: 18 + (Number(a.confidence) || 5) * 6,
+  };
+  if (["years", "always"].includes(a.duration)) s.MEN -= 10;
+  if (a.coping === "talk") { s.MEN += 8; s.SOC += 15; }
+  if (a.coping === "substances") { s.ENE -= 10; s.DIS -= 8; }
+  if (a.coping === "scroll") s.SAV -= 12;
+  if (a.mindIssue === "lonely") s.SOC -= 28;
+  if (a.mindIssue === "burnout") s.ENE -= 12;
+  if (a.enemy === "phone") s.SAV -= 14;
+  if (a.enemy === "sleep") s.ENE -= 12;
+  if (a.enemy === "doubt") { s.MEN -= 8; s.SOC -= 8; }
+  if (["procrast", "chaos"].includes(a.enemy)) s.DIS -= 14;
+  if (quit.includes("junk")) s.ENE -= 10;
+  s.DIS -= quit.length * 4;
+  s.MEN += { today: 8, days: 4, weeks: 0, months: -6, forgot: -12 }[a.proud] ?? 0;
+  for (const k in s) s[k] = clamp(s[k]);
+  return s;
+}
+const weakestAxis = (sc) => AXES.reduce((w, k) => (sc[k] < sc[w] ? k : w), AXES[0]);
+
+function radarSvg(sc, weak) {
+  const C = 150, R = 100;
+  const pt = (i, r) => {
+    const ang = (-90 + i * 60) * (Math.PI / 180);
+    return [C + r * Math.cos(ang), C + r * Math.sin(ang)];
+  };
+  const poly = (r) => AXES.map((_, i) => pt(i, r).join(",")).join(" ");
+  const grid = [0.33, 0.66, 1].map((f) => `<polygon points="${poly(R * f)}" class="r-grid"/>`).join("");
+  const spokes = AXES.map((_, i) => `<line x1="${C}" y1="${C}" x2="${pt(i, R)[0]}" y2="${pt(i, R)[1]}" class="r-grid"/>`).join("");
+  const shape = AXES.map((k, i) => pt(i, (R * sc[k]) / 100).join(",")).join(" ");
+  const labels = AXES.map((k, i) => {
+    const [x, y] = pt(i, R + 26);
+    return `<text x="${x}" y="${y}" class="r-label ${k === weak ? "weak" : ""}" text-anchor="middle" dominant-baseline="middle">${STATS[k].icon} ${STATS[k].label}</text>`;
+  }).join("");
+  const dots = AXES.map((k, i) => {
+    const [x, y] = pt(i, (R * sc[k]) / 100);
+    return `<circle cx="${x}" cy="${y}" r="${k === weak ? 6 : 3.5}" class="r-dot ${k === weak ? "weak" : ""}"/>`;
+  }).join("");
+  return `<svg viewBox="-20 0 340 300" class="radar">${grid}${spokes}
+    <g class="r-shape"><polygon points="${shape}"/>${dots}</g>${labels}</svg>`;
+}
+
+// Les 3 premières actions concrètes, adaptées aux réponses.
+function firstActions(a, weak) {
+  const tonight = {
+    phone: ["Téléphone hors de la chambre.", "Charge-le dans une autre pièce. Un réveil classique fait le reste."],
+    procrast: ["Écris la tâche que tu fuis.", "Sur un papier, posé sur ton bureau. Demain, tu l'attaques en premier."],
+    sleep: ["Écrans coupés à 22h30.", "Mets une alarme « coucher » sur ton téléphone. Elle compte plus que celle du matin."],
+    doubt: ["Note une chose réussie aujourd'hui.", "Même minuscule. Tu commences un dossier de preuves."],
+    chaos: ["Prépare tes affaires de demain.", "Tenue, sac, clés. 5 minutes ce soir = 30 minutes de calme demain."],
+  }[a.enemy] || ["Couche-toi 30 min plus tôt.", "Ton jour 1 commence ce soir."];
+  const tomorrow = {
+    FOR: ["10 pompes avant 10h.", "Ou une marche de 10 minutes. Pas un entraînement : un vote pour qui tu deviens."],
+    MEN: ["3 minutes de respiration au réveil.", "Inspire 4 s, expire 6 s. Avant de toucher ton téléphone."],
+    ENE: ["Un grand verre d'eau au réveil.", "Puis 5 minutes à la lumière du jour. Ton corps se recalibre."],
+    SOC: ["Envoie un message à quelqu'un.", "Pas un « ça va ? » : une vraie question, ou un souvenir partagé."],
+    SAV: ["Lis 5 pages au lieu de scroller.", "Le livre posé sur ton oreiller, pour ne pas l'oublier."],
+    DIS: ["Fais ton lit en te levant.", "30 secondes. Ta première victoire de la journée, avant même le café."],
+  }[weak];
+  const week = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
+  return [["Ce soir", tonight], ["Demain", tomorrow], ["Cette semaine", week]];
+}
+
+const FOCUS_SENTENCE = {
+  body: "Je veux retrouver de la force dans mon corps.",
+  mind: "Je veux retrouver un esprit apaisé.",
+  work: "Je veux être enfin efficace dans mon travail.",
+  discipline: "Je veux devenir quelqu'un de discipliné.",
+  social: "Je veux me sentir plus à l'aise avec les autres.",
+  learn: "Je veux apprendre et nourrir mon cerveau.",
+  money: "Je veux reprendre le contrôle de mon argent.",
+};
+const ENEMY_SENTENCE = {
+  phone: "Mon téléphone me vole mes heures sans que je m'en rende compte.",
+  procrast: "Je repousse ce qui compte, encore et encore.",
+  sleep: "Mes nuits sont trop courtes ou en désordre.",
+  doubt: "Je doute de moi avant même d'essayer.",
+  chaos: "Mes journées n'ont aucune structure.",
+};
 
 function startChallenge() {
   const a = ui.quiz.answers;
@@ -168,7 +268,10 @@ const NAV = {
 
 // ---------- Écrans ----------
 function render() {
-  const screens = { welcome: viewWelcome, quiz: viewQuiz, analyzing: viewAnalyzing, reveal: viewReveal, app: viewApp };
+  const screens = {
+    welcome: viewWelcome, quiz: viewQuiz, analyzing: viewAnalyzing, baseline: viewBaseline,
+    summary: viewSummary, radar: viewRadar, howto: viewHowto, reveal: viewReveal, app: viewApp,
+  };
   $app.innerHTML = screens[ui.screen]();
   $app.scrollTop = 0;
   if (ui.screen === "analyzing") runAnalysis();
@@ -267,9 +370,110 @@ function runAnalysis() {
   const items = [...document.querySelectorAll("#analysis li")];
   items.forEach((li, k) => setTimeout(() => li.classList.add("done"), 500 + k * 550));
   setTimeout(() => {
-    ui.screen = "reveal";
+    ui.screen = "baseline";
     render();
   }, 500 + items.length * 550 + 300);
+}
+
+const goBtn = (to, label = "Continuer") => `<button class="btn primary sticky" data-action="goto" data-v="${to}">${label}</button>`;
+
+function viewBaseline() {
+  const a = ui.quiz.answers;
+  const steps = Number(a.steps) || 4500;
+  const sleep = Number(a.sleep) || 7.5;
+  // Petit histogramme de 30 jours autour de la moyenne déclarée (illustratif).
+  const bars = Array.from({ length: 18 }, (_, k) => {
+    const v = steps * (0.6 + 0.8 * Math.abs(Math.sin(k * 1.7 + steps)));
+    return `<i style="height:${Math.min(100, (v / (steps * 1.5)) * 100)}%;animation-delay:${k * 25}ms"></i>`;
+  }).join("");
+  const stepsMsg = steps < 3000 ? "On part de bas. Chaque pas comptera double." : steps < 6000 ? "Une base honnête. On va la faire grimper." : "Belle base. On va s'en servir.";
+  const sleepMsg = sleep < 6 ? "C'est ton chantier n°1 : sans sommeil, aucune habitude ne tient." : sleep > 8.5 ? "Tu dors beaucoup. On vérifiera que c'est du repos, pas de la fuite." : "Une bonne base pour construire.";
+  return `<section class="screen center-screen">
+    <span class="pill">◆ [SYSTÈME] POINT DE DÉPART</span>
+    <h2 class="big-title">Ton point de départ.</h2>
+    <p class="sub">Pas besoin d'être prêt. Il suffit de savoir d'où tu pars.</p>
+    <div class="base-card">
+      <small>👣 PAS</small>
+      <div class="base-row"><div><b>${steps.toLocaleString("fr-FR")}</b><span>par jour</span></div><div class="bars">${bars}<em></em></div></div>
+      <p>${stepsMsg}</p>
+    </div>
+    <div class="base-card">
+      <small>🌙 SOMMEIL</small>
+      <div class="base-row"><div><b>${String(sleep).replace(".", ",")} h</b><span>par nuit</span></div>
+        <div class="sleep-gauge"><div style="width:${Math.min(100, (sleep / 9) * 100)}%"></div><em style="left:${(7.5 / 9) * 100}%"></em></div></div>
+      <p>${sleepMsg}</p>
+    </div>
+    ${goBtn("summary")}
+  </section>`;
+}
+
+function viewSummary() {
+  const a = ui.quiz.answers;
+  const weak = weakestAxis(profileScores(a));
+  const wake = (a.wake || "07:00").replace(":", "h").replace(/^0/, "");
+  const rhythm = (Number(a.confidence) || 5) >= 7
+    ? `Je me lève vers ${wake} et je sais tenir une routine.`
+    : `Je vise un lever à ${wake}, mais tenir dans la durée, c'est dur.`;
+  const cards = [
+    ["🎯", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
+    ["⏱️", "Ton rythme", rhythm],
+    ["⚡", "Ton frein", ENEMY_SENTENCE[a.enemy] || ENEMY_SENTENCE.procrast],
+  ];
+  return `<section class="screen summary">
+    <div class="sys-tag">[SYSTÈME] CE QUE TU M'AS DIT</div>
+    <div class="said">${cards
+      .map(([i, t, txt, big], k) => `<div class="said-card ${big ? "big" : ""}" style="animation-delay:${k * 120}ms">
+        <span class="said-tag">${i} ${t}</span><p>${esc(txt)}</p></div>`)
+      .join("")}</div>
+    <h2 class="heard">Bien reçu.</h2>
+    <div class="sys-tag">ACTIONS DU JOUR 1</div>
+    <div class="actions">${firstActions(a, weak)
+      .map(([when, [t, d]], k) => `<div class="action ${k === 0 ? "hot" : ""}" style="animation-delay:${300 + k * 120}ms">
+        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>`)
+      .join("")}</div>
+    ${goBtn("radar")}
+  </section>`;
+}
+
+function viewRadar() {
+  const a = ui.quiz.answers;
+  const sc = profileScores(a);
+  const weak = weakestAxis(sc);
+  const ins = AXIS_INSIGHT[weak];
+  const name = (a.name || "Héros").trim();
+  return `<section class="screen radar-screen">
+    <div class="sys-panel"><b>Analyse terminée.</b><span>Profil de ${esc(name)} généré.</span></div>
+    <div class="radar-card">
+      <h3>TES 6 ATTRIBUTS</h3>
+      ${radarSvg(sc, weak)}
+      <div class="weak-banner" style="--sc:${STATS[weak].color}">
+        <span>${STATS[weak].icon}</span>
+        <div><small>POINT FAIBLE</small><b>${STATS[weak].label}</b></div>
+        <em>On commence ici.</em>
+      </div>
+    </div>
+    <p class="radar-goal">${esc(ins.goal)}</p>
+    <div class="trap"><span class="said-tag">🔍 Ce que tu ne vois peut-être pas</span><p>${esc(ins.trap)}</p></div>
+    ${goBtn("howto", "Montre-moi comment ça marche")}
+  </section>`;
+}
+
+function viewHowto() {
+  return `<section class="screen center-screen howto">
+    ${embers()}
+    <div class="sys-tag">[SYSTÈME] LES RÈGLES</div>
+    <h2 class="big-title">Ta vie devient le jeu.</h2>
+    <div class="how-steps">
+      <div class="how"><span>1</span><div><b>Chaque jour, des quêtes</b><small>Des actions réelles : boire, lire, bouger, dormir. Pas de case à cocher dans le vide.</small></div></div>
+      <div class="how"><span>2</span><div><b>Chaque quête paie en XP</b><small>L'XP fait monter ton niveau et tes attributs. Valide 70 % de la journée pour un bonus.</small></div></div>
+      <div class="how"><span>3</span><div><b>Ta série est sacrée</b><small>Rate un jour, ça arrive. Jamais deux de suite.</small></div></div>
+    </div>
+    <div class="rank-path">
+      ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}"><span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span><small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
+    </div>
+    <p class="sub">Tu commences rang <b>E</b>. En 66 jours, les plus réguliers atteignent le rang <b>B</b>.</p>
+    ${goBtn("reveal", "Voir mes quêtes")}
+  </section>`;
 }
 
 function viewReveal() {
@@ -559,6 +763,10 @@ const actions = {
   },
   next() {
     nextStep();
+  },
+  goto(el) {
+    ui.screen = el.dataset.v;
+    render();
   },
   launch() {
     startChallenge();

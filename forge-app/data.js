@@ -8,6 +8,20 @@ const STATS = {
   DIS: { label: "Discipline", icon: "⚔️", color: "#f4b740" },
   SAV: { label: "Savoir", icon: "📖", color: "#4cc9f0" },
   SOC: { label: "Lien", icon: "🤝", color: "#4ade80" },
+  ENE: { label: "Énergie", icon: "🔋", color: "#f472b6" },
+};
+
+// Ordre des axes du radar (hexagone).
+const AXES = ["FOR", "MEN", "ENE", "SOC", "SAV", "DIS"];
+
+// Ce qu'on dit quand un axe est le plus faible.
+const AXIS_INSIGHT = {
+  FOR: { goal: "Rebâtir un corps solide, qui te porte au lieu de te freiner.", trap: "Tu attends d'avoir l'énergie pour bouger. C'est l'inverse : bouger crée l'énergie. On commence par 10 minutes, pas par une séance parfaite." },
+  MEN: { goal: "Retrouver un esprit calme, qui t'appartient à nouveau.", trap: "Tu essaies de chasser les pensées. Ça ne marche jamais. On va plutôt t'apprendre à les observer passer, 5 minutes par jour." },
+  ENE: { goal: "Recharger tes batteries : mieux dormir, mieux manger.", trap: "Le problème n'est pas ta volonté, c'est ta fatigue. Un cerveau qui dort 6 h décide comme un cerveau ivre. On répare la base d'abord." },
+  SOC: { goal: "Recréer du lien, sortir de ta bulle.", trap: "Tu attends que les autres fassent le premier pas. Eux aussi. Un seul message par jour suffit à tout débloquer." },
+  SAV: { goal: "Nourrir ton cerveau au lieu de le remplir.", trap: "Ton attention est ta ressource la plus précieuse, et ton téléphone la vend. On va la reprendre, page après page." },
+  DIS: { goal: "Devenir quelqu'un qui tient parole, d'abord envers soi.", trap: "Tu crois manquer de motivation. Il te manque juste des actions assez petites pour être impossibles à rater. On commence minuscule." },
 };
 
 const RANKS = [
@@ -67,6 +81,66 @@ const QUIZ = [
       { v: "low", label: "Le manque d'envie, la tristesse" },
       { v: "lonely", label: "Me sentir seul(e)" },
       { v: "anger", label: "L'irritabilité, la colère" },
+    ],
+  },
+  {
+    id: "duration",
+    type: "single",
+    q: "Depuis quand ça dure ?",
+    showIf: (a) => !!a.mindIssue,
+    options: [
+      { v: "weeks", label: "Quelques semaines" },
+      { v: "months", label: "Quelques mois" },
+      { v: "year", label: "Environ un an" },
+      { v: "years", label: "Des années" },
+      { v: "always", label: "Depuis toujours, je crois" },
+    ],
+  },
+  {
+    id: "coping",
+    type: "single",
+    q: "Quand ça ne va pas, tu fais quoi ?",
+    options: [
+      { v: "nothing", label: "Rien, j'attends que ça passe" },
+      { v: "scroll", label: "Je scrolle sur mon téléphone" },
+      { v: "sport", label: "Je bouge, je fais du sport" },
+      { v: "talk", label: "J'en parle à quelqu'un" },
+      { v: "substances", label: "Je compense (alcool, bouffe, écrans…)" },
+    ],
+  },
+  {
+    id: "proud",
+    type: "single",
+    q: "La dernière fois que tu as été fier/fière de toi ?",
+    options: [
+      { v: "today", label: "Aujourd'hui" },
+      { v: "days", label: "Cette semaine" },
+      { v: "weeks", label: "Il y a quelques semaines" },
+      { v: "months", label: "Il y a des mois" },
+      { v: "forgot", label: "Je ne m'en souviens plus" },
+    ],
+  },
+  {
+    id: "steps",
+    type: "single",
+    q: "Combien de pas fais-tu par jour, environ ?",
+    sub: "Regarde dans l'app Santé de ton iPhone si tu veux être précis.",
+    options: [
+      { v: 2000, label: "Moins de 3 000", hint: "plutôt assis" },
+      { v: 4500, label: "3 000 à 6 000", hint: "un peu actif" },
+      { v: 8000, label: "6 000 à 10 000", hint: "actif" },
+      { v: 12000, label: "Plus de 10 000", hint: "très actif" },
+    ],
+  },
+  {
+    id: "sleep",
+    type: "single",
+    q: "Combien d'heures dors-tu par nuit ?",
+    options: [
+      { v: 4.5, label: "Moins de 5 h" },
+      { v: 5.5, label: "5 à 6 h" },
+      { v: 7.5, label: "7 à 8 h" },
+      { v: 9, label: "Plus de 8 h" },
     ],
   },
   {
@@ -158,7 +232,7 @@ const CATALOG = [
   { id: "bike", focus: "body", stat: "FOR", xp: 30, needs: "bike", t: (n) => `${n} min de vélo`, sub: "Trajet ou balade", amt: [15, 25, 40, 60] },
   { id: "swim", focus: "body", stat: "FOR", xp: 35, needs: "pool", t: (n) => `Nager ${n} min`, sub: "Sans s'arrêter si possible", amt: [15, 20, 30, 45] },
   { id: "stretch", focus: "body", stat: "FOR", xp: 15, t: (n) => `${n} min d'étirements`, sub: "Le soir, au calme", amt: [5, 10, 10, 15] },
-  { id: "water", focus: "body", stat: "DIS", xp: 10, t: () => "Boire 2 L d'eau", sub: "Une bouteille sur le bureau", amt: [] },
+  { id: "water", focus: "body", stat: "ENE", xp: 10, t: () => "Boire 2 L d'eau", sub: "Une bouteille sur le bureau", amt: [] },
   // Esprit
   { id: "breath", focus: "mind", stat: "MEN", xp: 15, t: (n) => `${n} min de respiration`, sub: "Inspire 4 s · bloque 4 s · expire 6 s", amt: [3, 5, 5, 10] },
   { id: "meditate", focus: "mind", stat: "MEN", xp: 20, t: (n) => `Méditer ${n} min`, sub: "Assis, yeux fermés", amt: [5, 10, 15, 20] },
@@ -190,12 +264,12 @@ const CATALOG = [
 const SPECIAL = {
   phone: { id: "nophone", stat: "DIS", xp: 20, title: "Pas d'écran la 1ʳᵉ heure", sub: "Ni réseaux, ni mails au réveil" },
   procrast: { id: "twominutes", stat: "DIS", xp: 15, title: "Attaquer la tâche redoutée", sub: "Juste 10 minutes pour lancer" },
-  sleep: { id: "sleep", stat: "DIS", xp: 20, title: "Au lit avant 23h", sub: "Écrans coupés 30 min avant" },
+  sleep: { id: "sleep", stat: "ENE", xp: 20, title: "Au lit avant 23h", sub: "Écrans coupés 30 min avant" },
   doubt: { id: "win", stat: "MEN", xp: 15, title: "Noter une victoire du jour", sub: "Preuve que tu avances" },
   chaos: { id: "plan", stat: "DIS", xp: 15, title: "Préparer demain ce soir", sub: "Tenue, sac, planning" },
 
   anxiety: { id: "breath", stat: "MEN", xp: 15, title: "5 min de respiration", sub: "Inspire 4 s · bloque 4 s · expire 6 s" },
-  burnout: { id: "pause", stat: "MEN", xp: 15, title: "Pause sans écran de 15 min", sub: "Dehors ou fenêtre ouverte" },
+  burnout: { id: "pause", stat: "ENE", xp: 15, title: "Pause sans écran de 15 min", sub: "Dehors ou fenêtre ouverte" },
   low: { id: "sunwalk", stat: "MEN", xp: 20, title: "20 min dehors à la lumière", sub: "Le soleil est un antidépresseur" },
   lonely: { id: "call", stat: "SOC", xp: 20, title: "Contacter un proche", sub: "Appel ou vrai message" },
   anger: { id: "meditate", stat: "MEN", xp: 20, title: "Méditer 10 min", sub: "Observer sans réagir" },
@@ -204,7 +278,7 @@ const SPECIAL = {
   alcohol: { id: "q-alcohol", stat: "DIS", xp: 30, title: "Journée sans alcool", sub: "Eau pétillante en remplacement" },
   porn: { id: "q-porn", stat: "DIS", xp: 30, title: "Journée sans porno", sub: "Bloqueur activé, téléphone hors chambre" },
   games: { id: "q-games", stat: "DIS", xp: 25, title: "Max 1 h de jeux vidéo", sub: "Après les quêtes uniquement" },
-  junk: { id: "q-junk", stat: "FOR", xp: 25, title: "Zéro malbouffe", sub: "Ni sucre ajouté, ni fast-food" },
+  junk: { id: "q-junk", stat: "ENE", xp: 25, title: "Zéro malbouffe", sub: "Ni sucre ajouté, ni fast-food" },
 };
 
 const QUOTES = [
