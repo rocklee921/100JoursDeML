@@ -52,6 +52,13 @@ const ui = {
 };
 
 // ---------- Génération du programme ----------
+function equipOf(a) {
+  const map = { muscu: "gym", calisth: "gym", run: "outdoor", walk: "outdoor", bike: "bike", swim: "pool" };
+  return [...new Set([...(a.equipment || []).filter((e) => e !== "none"), ...(a.sports || []).map((x) => map[x]).filter(Boolean)])];
+}
+const isSenior = (a) => ["50", "65"].includes(a.age);
+const fieldOf = (a) => (a.field || "").trim().slice(0, 30);
+
 function buildProgram(a) {
   const i = Number(a.intensity) || 2;
   const target = [4, 5, 7, 8][i - 1];
@@ -73,13 +80,30 @@ function buildProgram(a) {
     list.slice(0, i >= 3 ? list.length : 2).forEach((s) => add({ ...s }));
     if (i >= 2) fromSpecial("kindness");
   }
+  // Sports choisis
+  if ((a.focus || []).includes("body")) {
+    (a.sports || []).slice(0, i >= 3 ? 3 : 2).forEach((sp) => {
+      const S = SPORT_QUESTS[sp];
+      if (!S) return;
+      const c = S.ref ? CATALOG.find((x) => x.id === S.ref) : S;
+      const n = c.amt.length ? c.amt[i - 1] : null;
+      add({ id: c.id, days: c.days, proof: c.proof, title: c.t(n, (a.sportOther || "").trim().slice(0, 24)), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+    });
+  }
+  // Situation (lycée, études, travail, recherche, parent, retraite)
+  const st = STATUS_QUESTS[a.status] || [];
+  st.slice(0, (a.focus || []).some((f) => f === "work" || f === "learn") ? 2 : 1).forEach((c) => {
+    const n = c.amt.length ? c.amt[i - 1] : null;
+    add({ id: c.id, days: c.days, title: c.t(n, fieldOf(a)), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+  });
   if ((a.focus || []).includes("dare") && a.dream && a.dream.trim()) {
     add({ id: "dream", title: `Avancer 20 min : ${a.dream.trim().slice(0, 40)}`, sub: "Ton rêve, une brique par jour", stat: "COU", xp: 35 });
   }
 
   // Au moins une quête qui travaille l'attribut le plus faible.
   const weak = weakestAxis(profileScores(a));
-  const equipOk = (c) => !c.needs || (a.equipment || []).includes(c.needs);
+  const senior = isSenior(a);
+  const equipOk = (c) => (!c.needs || equipOf(a).includes(c.needs)) && !(senior && ["coldshower", "run"].includes(c.id));
   if (weak === "DIS" && !quests.some((q) => q.id === "bed")) {
     const c = CATALOG.find((x) => x.id === "bed");
     add({ id: c.id, proof: c.proof, title: c.t(), sub: c.sub, stat: c.stat, xp: c.xp });
@@ -90,10 +114,10 @@ function buildProgram(a) {
   }
 
   // Remplissage équilibré entre les domaines choisis.
-  const equip = a.equipment || [];
+  const equip = equipOf(a);
   const focus = (a.focus && a.focus.length ? a.focus : ["discipline"]).filter((f) => f !== "faith");
   const pools = focus.map((f) =>
-    CATALOG.filter((c) => c.focus === f && (!c.needs || equip.includes(c.needs)))
+    CATALOG.filter((c) => c.focus === f && (!c.needs || equip.includes(c.needs)) && !(senior && ["coldshower", "run"].includes(c.id)))
       .sort((x, y) => (y.needs ? 1 : 0) - (x.needs ? 1 : 0))
   );
   let guard = 0;
@@ -109,6 +133,10 @@ function buildProgram(a) {
     }
     if (!added) break;
   }
+  // Adaptation à partir de 50 ans : volumes plus doux
+  if (senior) quests.forEach((q) => {
+    if (q.id === "pushups") q.title = q.title.replace(/^\d+/, (m) => Math.max(5, Math.round(m / 2))) + " (au mur si besoin)";
+  });
   return quests;
 }
 
@@ -119,7 +147,7 @@ function profileScores(a) {
   const sleep = Number(a.sleep) || 7.5;
   const quit = (a.quit || []).filter((q) => q !== "none");
   const s = {
-    FOR: 15 + Math.min(steps, 12000) / 180 + ((a.equipment || []).some((e) => e !== "none") ? 8 : 0) + (a.coping === "sport" ? 10 : 0),
+    FOR: 15 + Math.min(steps, 12000) / 180 + (equipOf(a).length ? 8 : 0) + (a.coping === "sport" ? 10 : 0),
     MEN: { great: 80, good: 65, meh: 48, sad: 28, crisis: 15 }[a.life] ?? 50,
     ENE: { 4.5: 22, 5.5: 38, 7.5: 70, 9: 60 }[sleep] ?? 50,
     SOC: 58,
@@ -475,12 +503,41 @@ function impactFrame() {
 
 // ---------- Thèmes ----------
 let rainStop = null;
+const THEMES = { forge: "Système", zen: "Zen", samurai: "Samouraï", matrix: "Matrice" };
 function applyTheme(t) {
-  const theme = t === "matrix" ? "matrix" : "forge";
+  const theme = THEMES[t] ? t : "forge";
   if (document.documentElement.dataset.theme === theme) return;
   document.documentElement.dataset.theme = theme;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = { forge: "#050914", zen: "#f3efe6", samurai: "#0d0a0a", matrix: "#000000" }[theme];
   if (rainStop) { rainStop(); rainStop = null; }
   if (theme === "matrix") rainStop = startRain();
+  if (theme === "samurai") rainStop = startPetals();
+}
+function startPetals() {
+  const c = document.createElement("canvas");
+  c.id = "rain";
+  document.body.prepend(c);
+  const ctx = c.getContext("2d");
+  let raf, petals = [];
+  const resize = () => { c.width = innerWidth; c.height = innerHeight; };
+  resize();
+  addEventListener("resize", resize);
+  for (let k = 0; k < 26; k++) petals.push({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, s: 4 + Math.random() * 6, v: 0.4 + Math.random() * 0.8, a: Math.random() * 6, w: 0.01 + Math.random() * 0.02 });
+  const draw = () => {
+    ctx.clearRect(0, 0, c.width, c.height);
+    petals.forEach((p) => {
+      p.y += p.v; p.a += p.w; p.x += Math.sin(p.a) * 0.7;
+      if (p.y > c.height + 10) { p.y = -10; p.x = Math.random() * c.width; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+      ctx.fillStyle = "rgba(232,93,117,0.75)";
+      ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+    raf = requestAnimationFrame(draw);
+  };
+  if (reduced()) { draw(); cancelAnimationFrame(raf); } else draw();
+  return () => { cancelAnimationFrame(raf); removeEventListener("resize", resize); c.remove(); };
 }
 function startRain() {
   const c = document.createElement("canvas");
@@ -532,6 +589,7 @@ const NAV = {
 // ---------- Écrans ----------
 function render() {
   AXES = axesFor(state ? state.answers : ui.quiz.answers);
+  STATS.FOI.label = (state ? state.answers : ui.quiz.answers).faith === "none" ? "Sens" : "Foi";
   applyTheme(state ? state.theme : ui.quiz.answers.theme);
   const screens = {
     welcome: viewWelcome, quiz: viewQuiz, analyzing: viewAnalyzing, baseline: viewBaseline,
@@ -579,11 +637,12 @@ function viewQuiz() {
   const pct = Math.round((ui.quiz.step / steps.length) * 100);
   let body = "";
   let canContinue = true;
+  const opts = (s.options || []).filter((o) => !o.adult || !["u16", "16"].includes(a.age));
   let showContinue = true;
 
   if (s.type === "single") {
     showContinue = false;
-    body = `<div class="options">${s.options
+    body = `<div class="options">${opts
       .map(
         (o) => `<button class="opt ${a[s.id] === o.v ? "on" : ""}" data-action="pick" data-v="${esc(o.v)}">
           ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</button>`
@@ -592,7 +651,7 @@ function viewQuiz() {
   } else if (s.type === "multi") {
     const sel = a[s.id] || [];
     canContinue = sel.length > 0 || s.id === "quit";
-    body = `<div class="options">${s.options
+    body = `<div class="options">${opts
       .map((o) => `<button class="opt ${sel.includes(o.v) ? "on" : ""}" data-action="toggle" data-v="${esc(o.v)}">${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span><b class="tick">${CHECK}</b></button>`)
       .join("")}</div>`;
   } else if (s.type === "choice-grid") {
@@ -694,6 +753,8 @@ function viewBaseline() {
 
 function viewSummary() {
   const a = ui.quiz.answers;
+  FOCUS_SENTENCE.work = { lycee: "Je veux réussir mon année.", etudiant: "Je veux réussir mes études.", recherche: "Je veux décrocher un emploi.",
+    independant: "Je veux faire décoller mon activité.", parent: "Je veux mieux m'organiser au quotidien.", retraite: "Je veux garder l'esprit vif et utile." }[a.status] || "Je veux progresser dans mon métier.";
   const weak = weakestAxis(profileScores(a));
   const wake = (a.wake || "07:00").replace(":", "h").replace(/^0/, "");
   const rhythm = (Number(a.confidence) || 5) >= 7
@@ -1193,7 +1254,7 @@ function viewProfile() {
     </section>
     <section class="card">
       <h3>Réglages</h3>
-      <button class="row-btn" data-action="theme">🎨 Interface : ${state.theme === "matrix" ? "Matrice" : "Système"} (changer)</button>
+      <div class="theme-pick"><span>Interface</span><div class="seg wide">${Object.entries(THEMES).map(([k, n]) => `<button class="${(state.theme || "forge") === k ? "on" : ""}" data-action="theme" data-v="${k}">${n}</button>`).join("")}</div></div>
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
       <button class="row-btn" data-action="how">📜 Pourquoi ${CHALLENGE_DAYS} jours ?</button>
       <button class="row-btn danger" data-action="reset">↺ Recommencer l'épreuve</button>
@@ -1366,6 +1427,12 @@ const actions = {
     el.classList.add("on");
     vibrate(10);
     const go = () => setTimeout(nextStep, 220);
+    if (s.id === "age" && opt.v === "u16") {
+      modal(`<div class="sys-tag">[SYSTÈME] ACCÈS</div><h2>Reviens à tes 16 ans !</h2>
+        <p class="sub">Soul Leveling est conçu pour les 16 ans et plus. En attendant, le meilleur entraînement reste le même : dormir, bouger, apprendre, et être gentil(le) avec les autres.</p>`,
+        () => { ui.quiz.answers.age = null; ui.screen = "welcome"; ui.quiz.step = 0; render(); });
+      return;
+    }
     if (s.id === "life" && opt.v === "crisis") modal(HELP_HTML, go);
     else go();
   },
@@ -1390,8 +1457,8 @@ const actions = {
   next() {
     nextStep();
   },
-  theme() {
-    state.theme = state.theme === "matrix" ? "forge" : "matrix";
+  theme(el) {
+    state.theme = el.dataset.v;
     save();
     render();
   },

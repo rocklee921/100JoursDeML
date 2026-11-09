@@ -563,3 +563,61 @@ body.impact { filter: invert(1) contrast(1.4); }
 .mbti-set { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .mbti-set select { padding: 12px; border-radius: 12px; background: var(--bg2); border: 1px solid var(--line); color: var(--text); font: 15px var(--body); }
 .grid-opts .opt.center { padding: 16px 4px; font-size: 14px; }
+
+/* ----- Thème Zen (clair, doux) ----- */
+:root[data-theme="zen"] {
+  color-scheme: light;
+  --bg: #f3efe6; --bg2: #ebe5d8; --card: #fbf8f2; --card2: #e7e0d1; --line: #dcd2c0;
+  --text: #2f3a33; --muted: #6c776d; --ember: #6f9479; --gold: #9a7a52;
+  --grad: linear-gradient(135deg, #7fa489, #c4a479); --ok: #5f9c6e; --gold2: #c9b38e;
+  --paper: #fffdf8; --ink: #2f3a33; --on-accent: #ffffff; --panel: #f6f1e7; --glow: #e3ece0;
+  --sign: #4f6d58; --lu-bg: #f3efe6f2; --miss: #f0dcd6; --miss-t: #a2594f; --faint: #b0a796;
+  --display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+}
+:root[data-theme="zen"] #app { background: radial-gradient(120% 60% at 50% 0%, #e6eee2 0%, var(--bg) 60%); }
+:root[data-theme="zen"] body::after { content: ""; position: fixed; z-index: 0; pointer-events: none; width: 520px; height: 520px; top: -140px; right: -200px; border-radius: 50%;
+  border: 22px solid color-mix(in srgb, var(--ember) 13%, transparent); border-right-color: transparent; border-top-color: color-mix(in srgb, var(--ember) 7%, transparent);
+  transform: rotate(-25deg); animation: enso 9s ease-in-out infinite; }
+@keyframes enso { 50% { transform: rotate(-15deg) scale(1.06); } }
+:root[data-theme="zen"] .r-grid { stroke: #2f3a3322; }
+:root[data-theme="zen"] .r-ghost { stroke: #2f3a3399; }
+:root[data-theme="zen"] .curve .axis { stroke: #2f3a3330; }
+:root[data-theme="zen"] .c-lbl.muted, :root[data-theme="zen"] .c-axis { fill: #2f3a3399; }
+:root[data-theme="zen"] .tag { background: #ffffffaa; }
+:root[data-theme="zen"] .quest.done .q-title { text-decoration-color: #2f3a3366; }
+:root[data-theme="zen"] .levelup { background: radial-gradient(circle, var(--lu-bg), #f3efe6 70%); }
+:root[data-theme="zen"] .speedlines { opacity: .35; }
+:root[data-theme="zen"] .embers i { background: var(--ember); box-shadow: none; opacity: .5; }
+:root[data-theme="zen"] .btn.primary { box-shadow: 0 10px 30px -12px #6f947988; }
+:root[data-theme="zen"] .wipe i:nth-child(1) { background: var(--paper); }
+:root[data-theme="zen"] .wipe i:nth-child(2) { background: var(--ember); opacity: .4; }
+:root[data-theme="zen"] .wipe i:nth-child(3) { display: none; }
+:root[data-theme="zen"] .sfx b { color: var(--paper); text-shadow: 3px 3px 0 var(--gold2); }
+:root[data-theme="zen"] .heard, :root[data-theme="zen"] .gogo { text-shadow: 3px 3px 0 var(--gold2); }
+:root[data-theme="zen"] .tabbar { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+:root[data-theme="zen"] .cell { color: #8f8676; }
+
+/* ----- Thème Samouraï (encre, rouge, or) ----- */
+:root[data-theme="samurai"] {
+  --bg: #0d0a0a; --bg2: #160f0f; --card: #1b1312; --card2: #261a18; --line: #3b2723;
+  --text: #f2e8dc; --muted: #a8968a; --ember: #d01f35; --gold: #d9a54e;
+  --grad: linear-gradient(135deg, #a10d24, #e2404a); --ok: #7fb069; --gold2: #f0c36b;
+  --paper: #efe4cf; --ink: #1a1110; --on-accent: #fff4e6; --panel: #1a0d0c; --glow: #2c0b0d;
+  --sign: #b3001b; --lu-bg: #2a0808ee; --miss: #2a1010; --miss-t: #8a3030; --faint: #6e5a52;
+  --display: "Shippori Mincho B1", "Hiragino Mincho ProN", Georgia, serif;
+}
+:root[data-theme="samurai"] body::after { content: ""; position: fixed; z-index: 0; pointer-events: none; width: 300px; height: 300px; top: 60px; right: -90px; border-radius: 50%;
+  background: radial-gradient(circle, #c8102e55, #c8102e22 60%, transparent 70%); }
+:root[data-theme="samurai"] #app { background: radial-gradient(120% 60% at 50% 0%, #2c0b0dcc 0%, #0d0a0ae6 60%); }
+:root[data-theme="samurai"] .welcome h1, :root[data-theme="samurai"] .big-title, :root[data-theme="samurai"] .day-head h1 { font-weight: 800; letter-spacing: 0; }
+:root[data-theme="samurai"] .said-card, :root[data-theme="samurai"] .trap, :root[data-theme="samurai"] .pact-paper {
+  background-image: radial-gradient(#1a111010 1px, transparent 1.4px), linear-gradient(180deg, #f5ecd9, #e9dcc2); background-size: 5px 5px, auto; box-shadow: 4px 4px 0 var(--ember); }
+:root[data-theme="samurai"] .btn.primary { border-radius: 4px; }
+:root[data-theme="samurai"] .quest, :root[data-theme="samurai"] .card, :root[data-theme="samurai"] .opt { border-radius: 6px; }
+:root[data-theme="samurai"] .wipe i:nth-child(1) { background: linear-gradient(90deg, transparent, #0d0a0a 30%, #0d0a0a 70%, transparent); }
+:root[data-theme="samurai"] .wipe i:nth-child(2) { background: var(--ember); width: 3%; }
+
+.theme-pick { padding: 10px 0 4px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
+.theme-pick > span { font-size: 15px; }
+.theme-pick .seg { margin: 4px 0 8px; flex-wrap: wrap; }
+.theme-pick .seg button { padding: 8px 6px; font-size: 13px; }

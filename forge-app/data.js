@@ -110,6 +110,44 @@ const QUIZ = [
     placeholder: "Ton prénom ou pseudo",
   },
   {
+    id: "age",
+    type: "single",
+    q: "Quel âge as-tu ?",
+    sub: "Pour adapter tes quêtes à ton rythme de vie.",
+    options: [
+      { v: "u16", label: "Moins de 16 ans" },
+      { v: "16", label: "16 – 17 ans" },
+      { v: "18", label: "18 – 24 ans" },
+      { v: "25", label: "25 – 34 ans" },
+      { v: "35", label: "35 – 49 ans" },
+      { v: "50", label: "50 – 64 ans" },
+      { v: "65", label: "65 ans et plus" },
+    ],
+  },
+  {
+    id: "status",
+    type: "single",
+    q: "Quelle est ta situation ?",
+    options: [
+      { v: "lycee", icon: "learn", label: "Lycéen(ne)" },
+      { v: "etudiant", icon: "book", label: "Étudiant(e) ou en formation" },
+      { v: "salarie", icon: "work", label: "Salarié(e)" },
+      { v: "independant", icon: "target", label: "Indépendant(e) ou entrepreneur(e)" },
+      { v: "recherche", icon: "compass", label: "En recherche d'emploi" },
+      { v: "parent", icon: "people", label: "Parent au foyer" },
+      { v: "retraite", icon: "light", label: "Retraité(e)" },
+      { v: "autre", icon: "rise", label: "Autre" },
+    ],
+  },
+  {
+    id: "field",
+    type: "text",
+    q: "Quel est ton métier ou ton domaine ?",
+    sub: "Facultatif. On s'en sert pour personnaliser tes quêtes.",
+    placeholder: "Ex : infirmière, développeur, droit, BTS commerce…",
+    showIf: (a) => ["lycee", "etudiant", "salarie", "independant", "recherche"].includes(a.status),
+  },
+  {
     id: "theme",
     type: "single",
     q: "Choisis ton interface.",
@@ -117,6 +155,8 @@ const QUIZ = [
     options: [
       { v: "forge", icon: "rise", label: "Système — bleu électrique", hint: "style manga" },
       { v: "matrix", icon: "terminal", label: "Matrice — pluie de code", hint: "style hacker" },
+      { v: "zen", icon: "lotus", label: "Zen — calme et yoga", hint: "style doux" },
+      { v: "samurai", icon: "blade", label: "Samouraï — encre et sang", hint: "style bushidō" },
     ],
   },
   {
@@ -144,11 +184,11 @@ const QUIZ = [
       { v: "mind", icon: "mind", label: "Mental et sérénité" },
       { v: "discipline", icon: "swords", label: "Discipline et habitudes" },
       { v: "procrast", icon: "hourglass", label: "Arrêter de procrastiner" },
-      { v: "work", icon: "work", label: "Carrière et métier" },
+      { v: "work", icon: "work", label: "Études, carrière et métier" },
       { v: "learn", icon: "learn", label: "S'éduquer et apprendre" },
       { v: "culture", icon: "eye", label: "Intelligence et culture" },
       { v: "social", icon: "people", label: "Sociabilité et confiance" },
-      { v: "faith", icon: "light", label: "Foi et spiritualité" },
+      { v: "faith", icon: "light", label: "Foi, spiritualité ou sens" },
       { v: "dare", icon: "flame", label: "Oser ce que je n'ai jamais osé" },
       { v: "money", icon: "coin", label: "Argent et organisation" },
     ],
@@ -156,14 +196,18 @@ const QUIZ = [
   {
     id: "faith",
     type: "single",
-    q: "Quelle est ta pratique ?",
+    q: "Qu'est-ce qui te guide ?",
     sub: "Pour te proposer des quêtes qui ont du sens pour toi.",
     showIf: (a) => (a.focus || []).includes("faith"),
     options: [
       { v: "islam", label: "Islam" },
       { v: "christian", label: "Christianisme" },
       { v: "jewish", label: "Judaïsme" },
-      { v: "other", label: "Autre / spiritualité personnelle" },
+      { v: "buddhism", label: "Bouddhisme" },
+      { v: "hindu", label: "Hindouisme" },
+      { v: "sikh", label: "Sikhisme" },
+      { v: "other", label: "Autre spiritualité" },
+      { v: "none", label: "Sans religion : sens et valeurs" },
     ],
   },
   {
@@ -248,19 +292,36 @@ const QUIZ = [
     ],
   },
   {
-    id: "equipment",
+    id: "sports",
     type: "multi",
-    q: "De quoi disposes-tu ?",
-    sub: "Pour adapter tes quêtes physiques.",
+    q: "Quels sports pratiques-tu, ou veux-tu pratiquer ?",
+    sub: "Jusqu'à 3. Débutant bienvenu.",
+    max: 3,
     showIf: (a) => (a.focus || []).includes("body"),
-    exclusive: "none",
     options: [
-      { v: "gym", label: "Une salle de sport ou des haltères" },
-      { v: "outdoor", label: "Un parc ou des rues pour courir" },
-      { v: "bike", label: "Un vélo" },
-      { v: "pool", label: "Une piscine" },
-      { v: "none", label: "Rien de tout ça" },
+      { v: "muscu", label: "Musculation" },
+      { v: "calisth", label: "Poids du corps / street workout" },
+      { v: "run", label: "Course à pied" },
+      { v: "walk", label: "Marche ou randonnée" },
+      { v: "foot", label: "Football" },
+      { v: "basket", label: "Basket" },
+      { v: "combat", label: "Boxe, MMA ou arts martiaux" },
+      { v: "swim", label: "Natation" },
+      { v: "bike", label: "Vélo" },
+      { v: "racket", label: "Tennis, padel ou badminton" },
+      { v: "climb", label: "Escalade" },
+      { v: "yoga", label: "Yoga ou pilates" },
+      { v: "dance", label: "Danse" },
+      { v: "home", label: "Rien de précis : sport à la maison" },
+      { v: "other", label: "Un autre sport" },
     ],
+  },
+  {
+    id: "sportOther",
+    type: "text",
+    q: "Quel sport ?",
+    placeholder: "Ex : rugby, handball, judo, ski…",
+    showIf: (a) => (a.sports || []).includes("other"),
   },
   {
     id: "enemy",
@@ -283,7 +344,7 @@ const QUIZ = [
     options: [
       { v: "smoke", label: "Tabac ou vape" },
       { v: "alcohol", label: "Alcool" },
-      { v: "porn", label: "Pornographie" },
+      { v: "porn", label: "Pornographie", adult: true },
       { v: "games", label: "Jeux vidéo en excès" },
       { v: "junk", label: "Malbouffe et sucre" },
       { v: "none", label: "Aucune" },
@@ -421,6 +482,22 @@ const SPECIAL = {
     { id: "f-recueil", stat: "FOI", xp: 20, title: "10 min de recueillement", sub: "Prière, méditation ou silence" },
     { id: "f-read", stat: "FOI", xp: 20, title: "Lire un texte qui te nourrit", sub: "Spirituel ou philosophique" },
   ],
+  buddhism: [
+    { id: "f-zazen", stat: "FOI", xp: 25, title: "15 min de méditation assise", sub: "Attention au souffle" },
+    { id: "f-dharma", stat: "FOI", xp: 20, title: "Lire un enseignement bouddhiste", sub: "Un sutra, un texte, une idée à garder" },
+  ],
+  hindu: [
+    { id: "f-puja", stat: "FOI", xp: 25, title: "Prière ou puja du matin", sub: "Quelques minutes, sans téléphone" },
+    { id: "f-gita", stat: "FOI", xp: 20, title: "Lire un passage de la Bhagavad-Gita", sub: "Une phrase à méditer dans la journée" },
+  ],
+  sikh: [
+    { id: "f-nitnem", stat: "FOI", xp: 25, title: "Prières du matin (Nitnem)", sub: "Selon ta pratique" },
+    { id: "f-seva", stat: "FOI", xp: 20, title: "Seva : rendre un service", sub: "Sans rien attendre en retour" },
+  ],
+  none: [
+    { id: "f-philo", stat: "FOI", xp: 20, title: "10 min de philosophie", sub: "Stoïciens, Camus, Spinoza… une idée à garder" },
+    { id: "f-values", stat: "FOI", xp: 20, title: "Agir selon une de tes valeurs", sub: "Écris-la le matin, applique-la dans la journée" },
+  ],
   kindness: { id: "f-kind", stat: "FOI", xp: 20, title: "Un acte de bonté ou de charité", sub: "Discret, sans rien attendre" },
 
   junk: { id: "q-junk", stat: "ENE", xp: 25, title: "Zéro malbouffe", sub: "Ni sucre ajouté, ni fast-food" },
@@ -552,8 +629,61 @@ const ICONS = {
   terminal: "M3 5h18v14H3zM7 9l3 3-3 3M12 15h5",
   rise: "M6 13l6-6 6 6M6 19l6-6 6 6",
   stone: "M7 4h10l3 6-3 10H7L4 10zM4 10h16M10 4l-1 6 3 10 3-10-1-6",
+  lotus: "M12 20c-4 0-8-2-9-6 3-1 6 0 9 3 3-3 6-4 9-3-1 4-5 6-9 6zM12 17c-2-2-3-5-2-9 1 0 2 1 2 1s1-1 2-1c1 4 0 7-2 9zM8.5 15.5C6 13 6 10 7 8M15.5 15.5C18 13 18 10 17 8",
   phoenix: "M12 21c-1-4-6-5-6-10 2 2 4 2 5 1-2-3-1-6 1-9 2 3 3 6 1 9 1 1 3 1 5-1 0 5-5 6-6 10z",
 };
 
 // Onomatopées manga affichées quand une quête est validée.
 const SFX = [["BAM!", "バン"], ["DON!", "ドン"], ["ZAN!", "ザン"], ["SHING!", "シャキーン"], ["GO!", "ゴゴゴ"], ["POW!", "ドカッ"]];
+
+// Quêtes propres à chaque sport (amt = intensité 1 → 4).
+const SPORT_QUESTS = {
+  muscu: { ref: "gym" },
+  run: { ref: "run" },
+  bike: { ref: "bike" },
+  swim: { ref: "swim" },
+  calisth: { id: "sp-cal", stat: "FOR", xp: 35, days: [1, 3, 5], t: (n) => `Circuit poids du corps : ${n} tours`, sub: "Pompes, tractions, dips, squats, gainage", amt: [2, 3, 4, 5] },
+  walk: { id: "sp-walk", stat: "FOR", xp: 25, t: (n) => `Marcher ${n} km`, sub: "Rythme soutenu, dehors", amt: [2, 3, 5, 8] },
+  foot: { id: "sp-foot", stat: "FOR", xp: 35, days: [2, 4, 6], t: (n) => `${n} min de foot ou de technique`, sub: "Match, entraînement, jongles, conduite de balle", amt: [20, 30, 45, 60] },
+  basket: { id: "sp-basket", stat: "FOR", xp: 30, days: [2, 4, 6], t: (n) => `${n} tirs au panier`, sub: "Note ton pourcentage de réussite", amt: [50, 100, 150, 200] },
+  combat: { id: "sp-combat", stat: "FOR", xp: 35, days: [1, 3, 5], t: (n) => `${n} rounds de shadow ou de sac`, sub: "3 min par round, 1 min de repos", amt: [3, 4, 6, 8] },
+  racket: { id: "sp-racket", stat: "FOR", xp: 30, days: [2, 5], t: (n) => `${n} min de raquette`, sub: "Match, entraînement ou mur", amt: [30, 45, 60, 90] },
+  climb: { id: "sp-climb", stat: "FOR", xp: 35, days: [2, 5], t: () => "Séance d'escalade", sub: "Ou 20 min de gainage et suspension", amt: [] },
+  yoga: { id: "sp-yoga", stat: "MEN", xp: 25, t: (n) => `${n} min de yoga ou pilates`, sub: "Une vidéo guidée suffit", amt: [10, 15, 20, 30] },
+  dance: { id: "sp-dance", stat: "FOR", xp: 25, t: (n) => `${n} min de danse`, sub: "Cours, chorégraphie ou freestyle", amt: [15, 20, 30, 45] },
+  home: { id: "sp-home", stat: "FOR", xp: 30, t: (n) => `${n} min de sport à la maison`, sub: "Sans matériel, une vidéo guidée", amt: [10, 15, 25, 35] },
+  other: { id: "sp-other", stat: "FOR", xp: 35, days: [1, 3, 5], t: (n, name) => `${n} min de ${name || "ton sport"}`, sub: "Entraînement, match ou technique", amt: [20, 30, 45, 60] },
+};
+
+// Quêtes selon la situation (le 2e paramètre est le métier ou domaine saisi).
+const STATUS_QUESTS = {
+  lycee: [
+    { id: "st-devoirs", stat: "SAV", xp: 30, t: (n, f) => `${n} min de devoirs ou révisions${f ? ` (${f})` : ""}`, sub: "Avant les écrans", amt: [20, 30, 45, 60] },
+    { id: "st-sac", stat: "DIS", xp: 10, t: () => "Préparer ton sac la veille", sub: "Cours, affaires, tenue", amt: [] },
+  ],
+  etudiant: [
+    { id: "st-revise", stat: "SAV", xp: 35, t: (n, f) => `${n} min de révisions${f ? ` en ${f}` : ""}`, sub: "Téléphone dans une autre pièce", amt: [30, 45, 90, 120] },
+    { id: "st-notes", stat: "SAV", xp: 15, t: () => "Relire tes notes du jour", sub: "10 min pour fixer ce que tu as appris", amt: [] },
+  ],
+  salarie: [
+    { id: "st-skill", stat: "SAV", xp: 30, t: (n, f) => `${n} min pour progresser ${f ? `en ${f}` : "dans ton métier"}`, sub: "Formation, lecture, veille", amt: [15, 20, 30, 45] },
+    { id: "st-pro", stat: "SOC", xp: 20, days: [2, 4], t: () => "Échanger avec un contact pro", sub: "Collègue, manager, ancien collègue", amt: [] },
+  ],
+  independant: [
+    { id: "st-client", stat: "COU", xp: 30, t: () => "Une action pour trouver des clients", sub: "Prospection, publication, relance", amt: [] },
+    { id: "st-project", stat: "DIS", xp: 35, t: (n, f) => `${n} min sur ton projet${f ? ` (${f})` : " principal"}`, sub: "Le plus important, avant le reste", amt: [45, 60, 90, 120] },
+  ],
+  recherche: [
+    { id: "st-apply", stat: "COU", xp: 35, t: (n, f) => `${n} candidature${n > 1 ? "s" : ""} envoyée${n > 1 ? "s" : ""}${f ? ` (${f})` : ""}`, sub: "Lettre adaptée à chaque offre", amt: [1, 1, 2, 3] },
+    { id: "st-cv", stat: "SAV", xp: 20, t: () => "20 min sur ton CV ou ton profil pro", sub: "Une amélioration à la fois", amt: [] },
+    { id: "st-network", stat: "SOC", xp: 25, days: [1, 3, 5], t: () => "Contacter une personne de ton réseau", sub: "Demander un conseil, pas un emploi", amt: [] },
+  ],
+  parent: [
+    { id: "st-kids", stat: "SOC", xp: 20, t: () => "15 min de jeu sans écran avec tes enfants", sub: "Totalement présent(e)", amt: [] },
+    { id: "st-me", stat: "MEN", xp: 20, t: () => "30 min rien que pour toi", sub: "Lecture, sport, sieste, passion", amt: [] },
+  ],
+  retraite: [
+    { id: "st-new", stat: "SAV", xp: 25, t: () => "Apprendre ou essayer une chose nouvelle", sub: "Le cerveau adore la nouveauté", amt: [] },
+    { id: "st-help", stat: "SOC", xp: 25, days: [2, 5], t: () => "Rendre service ou faire du bénévolat", sub: "Une association, un voisin, la famille", amt: [] },
+  ],
+};
