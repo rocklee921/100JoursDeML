@@ -1,4 +1,4 @@
-# FORGE — L'épreuve des 100 jours
+# Soul Leveling — l'épreuve des 100 jours
 
 Appli de développement personnel gamifiée (PWA, HTML/CSS/JS sans dépendance).
 

@@ -1,4 +1,4 @@
-// FORGE — logique de l'application (vanilla JS, aucune dépendance).
+// SOUL LEVELING — logique de l'application (vanilla JS, aucune dépendance).
 "use strict";
 
 const STORAGE_KEY = "forge.v1";
@@ -373,9 +373,9 @@ function startRain() {
 
 // ---------- Icônes ----------
 const LOGO = `<svg viewBox="0 0 64 64" class="logo" aria-hidden="true">
-  <defs><linearGradient id="lg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a36"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs>
+  <defs><linearGradient id="lg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2563ff"/><stop offset="1" stop-color="#7ef0ff"/></linearGradient></defs>
   <path d="M32 4 56 18v28L32 60 8 46V18z" fill="none" stroke="url(#lg)" stroke-width="3"/>
-  <path d="M32 16c2 7 10 10 10 20a10 10 0 0 1-20 0c0-5 3-8 5-10 0 4 2 6 4 6-2-6 0-11 1-16z" fill="url(#lg)"/>
+  <path d="M20 34 32 22l12 12M20 45l12-12 12 12" fill="none" stroke="url(#lg)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 const CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const BACK = `<svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -409,10 +409,10 @@ const embers = () =>
 function viewWelcome() {
   return `<section class="screen welcome">
     ${embers()}
-    <div class="welcome-top">${LOGO}<div class="brand">FORGE</div></div>
+    <div class="welcome-top">${LOGO}<div class="brand">SOUL<br>LEVELING</div></div>
     <div class="welcome-body">
       <span class="pill">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS</span>
-      <h1>Forge la meilleure<br>version de <em>toi.</em></h1>
+      <h1>Monte de niveau.<br>Dans la <em>vraie vie.</em></h1>
       <p class="lead">Des quêtes quotidiennes, de l'XP, des rangs à gravir. Ta vie devient ton terrain d'entraînement.</p>
       <button class="btn primary" data-action="start">Commencer l'épreuve</button>
       <button class="link" data-action="how">Pourquoi ${CHALLENGE_DAYS} jours ?</button>
@@ -479,7 +479,7 @@ function viewQuiz() {
 function viewAnalyzing() {
   return `<section class="screen analyzing">
     ${embers()}
-    <div class="sys-tag">[SYSTÈME] FORGE</div>
+    <div class="sys-tag">[SYSTÈME] ÉVEIL</div>
     <h2 class="big-title">Lecture de<br><em class="grad-text">ton dossier…</em></h2>
     <p class="sub">Tes réponses deviennent un programme : quelles quêtes, à quelle intensité, et à quoi ressemble chacun de tes ${CHALLENGE_DAYS} jours.</p>
     <div class="pct" id="pct">0<small>%</small></div>
@@ -621,7 +621,7 @@ function viewScience() {
     <div class="sys-panel"><b>Pourquoi ${CHALLENGE_DAYS} jours ?</b><span>Ce que dit la recherche.</span></div>
     <div class="curve-card">
       <svg viewBox="0 0 320 190" class="curve">
-        <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#ff5a36"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs>
+        <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#2563ff"/><stop offset="1" stop-color="#7ef0ff"/></linearGradient></defs>
         <line x1="20" y1="170" x2="310" y2="170" class="axis"/>
         <line x1="20" y1="10" x2="20" y2="170" class="axis"/>
         <path d="M20 165 C 70 162, 100 150, 140 110 S 200 48, 300 38" class="c-path"/>
@@ -748,7 +748,7 @@ function hud() {
   const L = levelInfo(xp);
   const r = rankFor(L.lvl);
   return `<div class="hud">
-    <span class="chip">🔥 ${globalStreak()}</span>
+    <span class="chip">⚡ ${globalStreak()}</span>
     <span class="chip" style="--rc:${r.color}"><b class="mini-rank">${r.letter}</b> Niv. ${L.lvl}</span>
     <span class="chip">✦ ${xp} XP</span>
   </div>`;
@@ -795,7 +795,7 @@ function questCard(q) {
   const st = STATS[q.stat];
   return `<button class="quest ${done ? "done" : ""}" data-action="quest" data-id="${esc(q.id)}" style="--sc:${st.color}">
     <div class="q-main">
-      <div class="q-tags"><span class="tag">🔥 ${s} j</span><span class="tag stat">${st.icon} ${st.label}</span></div>
+      <div class="q-tags"><span class="tag">⚡ ${s} j</span><span class="tag stat">${st.icon} ${st.label}</span></div>
       <div class="q-title">${esc(q.title)}</div>
       <div class="q-sub">${esc(q.sub || "")}</div>
     </div>
@@ -1055,12 +1055,12 @@ const HELP_HTML = `<div class="sys-tag">[SYSTÈME] TU N'ES PAS SEUL(E)</div>
   <a class="help-line" href="tel:3114"><b>3114</b><span>Numéro national de prévention du suicide</span></a>
   <a class="help-line" href="tel:0972394050"><b>09 72 39 40 50</b><span>SOS Amitié — écoute anonyme</span></a>
   <a class="help-line" href="tel:112"><b>112</b><span>Urgences</span></a>
-  <p class="sub small">FORGE est un outil de motivation, pas un soin. Il ne remplace pas un professionnel de santé.</p>`;
+  <p class="sub small">Soul Leveling est un outil de motivation, pas un soin. Il ne remplace pas un professionnel de santé.</p>`;
 
 const HOW_HTML = `<div class="sys-tag">[SYSTÈME] LE PRINCIPE</div>
   <h2>Pourquoi ${CHALLENGE_DAYS} jours ?</h2>
   <p class="sub">Une étude de l'University College London (Lally et al., 2009) a mesuré qu'il faut en moyenne 66 jours, et parfois bien plus, pour qu'un comportement devienne automatique. ${CHALLENGE_DAYS} jours te laissent la marge pour que tes nouvelles habitudes tiennent vraiment.</p>
-  <p class="sub">Chaque jour, tu reçois des quêtes. Valide-en au moins 70 % pour garder ta série. Gagne de l'XP, monte de niveau, gravis les rangs de <b>Étincelle</b> à <b>Légende</b>.</p>
+  <p class="sub">Chaque jour, tu reçois des quêtes. Valide-en au moins 70 % pour garder ta série. Gagne de l'XP, monte de niveau, gravis les rangs de <b>Éveillé</b> à <b>Légende</b>.</p>
   <p class="sub">Rater une journée n'efface rien : l'important est de ne jamais en rater deux de suite.</p>`;
 
 function floatXp(el, txt) {

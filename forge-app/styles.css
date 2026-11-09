@@ -1,26 +1,26 @@
 :root {
-  --bg: #0b0907;
-  --bg2: #15110d;
-  --card: #1c1712;
-  --card2: #241d16;
-  --line: #3a2e22;
-  --text: #f6efe6;
-  --muted: #a3968a;
-  --ember: #ff5a36;
-  --gold: #ffb547;
-  --grad: linear-gradient(135deg, #ff5a36, #ffb547);
+  --bg: #050914;
+  --bg2: #0a1122;
+  --card: #0e172b;
+  --card2: #142039;
+  --line: #1e2f52;
+  --text: #e8f0ff;
+  --muted: #8a9bbf;
+  --ember: #2f7bff;
+  --gold: #5ee1ff;
+  --grad: linear-gradient(135deg, #2563ff, #38d6ff);
   --ok: #4ade80;
-  --gold2: #ffd166;
-  --paper: #f3e9da;
-  --ink: #1a120b;
-  --on-accent: #1a0d05;
-  --panel: #1a0c06;
-  --glow: #2a1609;
-  --sign: #b4361a;
-  --lu-bg: #3a1a08ee;
-  --miss: #2a1512;
-  --miss-t: #7a3b30;
-  --faint: #6b5d50;
+  --gold2: #b8f1ff;
+  --paper: #e6eeff;
+  --ink: #0a1430;
+  --on-accent: #031028;
+  --panel: #06112a;
+  --glow: #0b1d44;
+  --sign: #1d4ed8;
+  --lu-bg: #0a1d4aee;
+  --miss: #2a1218;
+  --miss-t: #8a3b4a;
+  --faint: #3f5379;
   --display: "Unbounded", system-ui, sans-serif;
   --body: "Inter", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
@@ -59,7 +59,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .welcome { justify-content: space-between; overflow: hidden; }
 .welcome-top { display: flex; flex-direction: column; align-items: center; margin-top: 8vh; z-index: 1; }
 .logo { width: 92px; height: 92px; filter: drop-shadow(0 0 30px color-mix(in srgb, var(--ember) 60%, transparent)); }
-.brand { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: .5em; margin: 14px 0 0 .5em; }
+.brand { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: .28em; margin: 14px 0 0 .28em; text-align: center; }
 .welcome-body { text-align: center; z-index: 1; display: flex; flex-direction: column; align-items: center; }
 .welcome h1 { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 9vw, 40px); line-height: 1.1; margin: 22px 0 14px; }
 .welcome h1 em { font-style: normal; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }

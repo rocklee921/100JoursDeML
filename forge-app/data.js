@@ -1,4 +1,4 @@
-// FORGE — données : questionnaire, catalogue de quêtes, rangs, attributs.
+// SOUL LEVELING — données : questionnaire, catalogue de quêtes, rangs, attributs.
 
 // Durée de l'épreuve : change ce nombre pour adapter toute l'appli.
 const CHALLENGE_DAYS = 100;
@@ -31,11 +31,11 @@ const AXIS_INSIGHT = {
 };
 
 const RANKS = [
-  { min: 1, letter: "E", name: "Étincelle", color: "#9ca3af" },
+  { min: 1, letter: "E", name: "Éveillé", color: "#9ca3af" },
   { min: 5, letter: "D", name: "Apprenti", color: "#4ade80" },
-  { min: 10, letter: "C", name: "Forgeron", color: "#4cc9f0" },
+  { min: 10, letter: "C", name: "Combattant", color: "#4cc9f0" },
   { min: 18, letter: "B", name: "Vétéran", color: "#a78bfa" },
-  { min: 28, letter: "A", name: "Maître de forge", color: "#f4b740" },
+  { min: 28, letter: "A", name: "Maître", color: "#f4b740" },
   { min: 40, letter: "S", name: "Légende", color: "#ff5a36" },
 ];
 
@@ -54,7 +54,7 @@ const QUIZ = [
     q: "Choisis ton interface.",
     sub: "Tu pourras la changer à tout moment dans ton profil.",
     options: [
-      { v: "forge", label: "⚔️ Système — braise et acier", hint: "style manga" },
+      { v: "forge", label: "⚔️ Système — bleu électrique", hint: "style manga" },
       { v: "matrix", label: "🟩 Matrice — pluie de code", hint: "style hacker" },
     ],
   },
@@ -260,7 +260,7 @@ const QUIZ = [
       { v: 1, label: "Doux — je reprends en douceur", hint: "3-4 quêtes / jour" },
       { v: 2, label: "Progressif — je monte en puissance", hint: "5 quêtes / jour" },
       { v: 3, label: "Exigeant — pousse-moi", hint: "6-7 quêtes / jour" },
-      { v: 4, label: "Mode forge — le maximum", hint: "8 quêtes / jour" },
+      { v: 4, label: "Mode éveil — le maximum", hint: "8 quêtes / jour" },
     ],
   },
 ];
@@ -379,7 +379,7 @@ const ARCHETYPES = {
   PHOENIX: { name: "Le Phénix", icon: "🔥", color: "#ff5a36", text: "Tu sors d'une période difficile. Les Phénix ne repartent pas de zéro : ils repartent de l'expérience. Ta reconstruction commence par des gestes minuscules et réguliers." },
   FOR: { name: "Le Colosse endormi", icon: "🗿", color: "#ff6b4a", text: "Tu as une force en réserve que tu n'utilises pas. Les Colosses se réveillent par le corps : dès qu'il bouge, tout le reste suit." },
   MEN: { name: "Le Gardien", icon: "🛡️", color: "#a78bfa", text: "Ton esprit tourne sans arrêt. Les Gardiens apprennent à garder la porte de leurs pensées, à choisir lesquelles entrent." },
-  ENE: { name: "La Braise", icon: "🕯️", color: "#f472b6", text: "Ta flamme est là, mais tu tournes sur la réserve. Les Braises se rallument par le sommeil, l'eau, la lumière. On remet du bois." },
+  ENE: { name: "La Flamme", icon: "🕯️", color: "#f472b6", text: "Ta flamme est là, mais tu tournes sur la réserve. Les Flammes se rallument par le sommeil, l'eau, la lumière. On remet du bois." },
   SOC: { name: "L'Éclaireur", icon: "🧭", color: "#4ade80", text: "Tu avances souvent seul(e). Les Éclaireurs ouvrent le chemin, puis reviennent chercher les autres. Le lien est ta prochaine conquête." },
   SAV: { name: "L'Érudit", icon: "📜", color: "#4cc9f0", text: "Ta curiosité est immense, mais ton attention est volée. Les Érudits reprennent le contrôle de ce qui entre dans leur tête." },
   COU: { name: "Le Rōnin", icon: "🗡️", color: "#fb923c", text: "Tu as des rêves que tu gardes pour plus tard. Les Rōnin n'attendent l'autorisation de personne : ils avancent, un pas audacieux après l'autre." },
