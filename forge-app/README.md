@@ -28,4 +28,4 @@ Voir **SETUP.md** pour l'installation. Sans configuration (`config.js` vide), l'
 
 - `supabase/schema.sql` : tables, règles de sécurité (RLS), garde-fous anti-triche.
 - `cloud.js` : connexion, synchronisation, amis, classements.
-- `vendor/supabase.js` : client Supabase 2.45.4 (inclus pour fonctionner sans CDN).
+- `vendor/supabase.js` : client Supabase 2.118.0 (inclus pour fonctionner sans CDN).
