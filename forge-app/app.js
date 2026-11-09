@@ -640,11 +640,7 @@ function startRain() {
 }
 
 // ---------- Icônes ----------
-const LOGO = `<svg viewBox="0 0 64 64" class="logo" aria-hidden="true">
-  <defs><linearGradient id="lg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2563ff"/><stop offset="1" stop-color="#7ef0ff"/></linearGradient></defs>
-  <path d="M32 4 56 18v28L32 60 8 46V18z" fill="none" stroke="url(#lg)" stroke-width="3"/>
-  <path d="M20 34 32 22l12 12M20 45l12-12 12 12" fill="none" stroke="url(#lg)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
+const LOGO = `<img class="logo" src="assets/logo-flame.webp" alt="" aria-hidden="true">`;
 const CHECK = `<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const BACK = `<svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const NAV = {
@@ -691,7 +687,7 @@ function mangaCard({ kicker, title, text, link, linkAction, seal = true }) {
       <p class="mc-text">${text}</p>
       ${link ? `<button class="mc-link" data-action="${linkAction || "how"}">${link} ›</button>` : ""}
     </div>
-    <div class="mc-art">${mangaHero()}${seal ? waxSeal() : ""}</div>
+    <div class="mc-art"><img class="mhero-img" src="assets/hero.webp" alt="" aria-hidden="true">${seal ? waxSeal() : ""}</div>
   </article>`;
 }
 
@@ -1609,7 +1605,7 @@ function systemUnlock() {
   el.innerHTML = `<div class="speedlines"></div><div class="lu-inner frame">
     <div class="sys-tag">[SYSTÈME] ${c === 2 ? "ÉPREUVE ACCOMPLIE" : "CYCLE TERMINÉ"}</div>
     <div class="lu-title">${c === 2 ? "LE SYSTÈME EST DÉBLOQUÉ" : `CYCLE ${ROMAN[c] || c}`}</div>
-    <div class="lu-emblem">${emblem(r, 120)}</div>
+    <img class="unlock-hero" src="assets/emblem-hero.webp" alt="" aria-hidden="true">
     <p class="sub">${c === 2 ? `Tu as tenu ${CHALLENGE_DAYS} jours. Tes quêtes deviennent ton quotidien. Nouveau cycle, nouvelle étoile de prestige.` : "Une étoile de prestige de plus. Le Système continue."}</p>
     <div class="stars big">${"★".repeat(Math.min(5, c - 1))}</div>
     <small>Touchez pour continuer</small></div>`;
