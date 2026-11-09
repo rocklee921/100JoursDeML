@@ -20,3 +20,12 @@ Puis ouvrir http://localhost:8000 dans Safari/Chrome (astuce : mode « appareil 
 ## Installer sur iPhone
 
 Héberger le dossier (GitHub Pages, Netlify…), ouvrir l'URL dans Safari → Partager → « Sur l'écran d'accueil ».
+
+## Mode en ligne
+
+Comptes, amis, classements (amis, saison, monde) et sauvegarde sur le serveur via Supabase.
+Voir **SETUP.md** pour l'installation. Sans configuration (`config.js` vide), l'appli fonctionne hors ligne.
+
+- `supabase/schema.sql` : tables, règles de sécurité (RLS), garde-fous anti-triche.
+- `cloud.js` : connexion, synchronisation, amis, classements.
+- `vendor/supabase.js` : client Supabase 2.45.4 (inclus pour fonctionner sans CDN).

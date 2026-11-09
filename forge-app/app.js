@@ -39,6 +39,7 @@ function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {}
+  if (typeof cloudQueuePush === "function") cloudQueuePush();
 }
 
 // ---------- État ----------
@@ -626,6 +627,7 @@ const BACK = `<svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" fill="none" stro
 const NAV = {
   quests: `<svg viewBox="0 0 24 24"><path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3-1-3 0-6 1-8z" fill="currentColor"/></svg>`,
   path: `<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
+  guild: `<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="currentColor"/><circle cx="17" cy="9" r="2.6" fill="currentColor"/><path d="M2 20c.6-4 3.4-6 7-6s6.4 2 7 6zM15.5 14.2c3 0 5.6 1.6 6.5 5.8h-4.6c-.3-2.4-1-4.3-1.9-5.8z" fill="currentColor"/></svg>`,
   tools: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor"/><circle cx="17" cy="17" r="4" fill="currentColor"/></svg>`,
   profile: `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7z" fill="currentColor"/></svg>`,
 };
@@ -1104,10 +1106,10 @@ function viewReveal() {
 
 // ---------- Application principale ----------
 function viewApp() {
-  const content = { quests: viewQuests, tools: viewTools, path: viewPath, profile: viewProfile }[ui.tab]();
+  const content = { quests: viewQuests, tools: viewTools, guild: viewGuild, path: viewPath, profile: viewProfile }[ui.tab]();
   return `<section class="screen main">${content}</section>
-  <nav class="tabbar">${["quests", "tools", "path", "profile"]
-    .map((t) => `<button class="${ui.tab === t ? "on" : ""}" data-action="tab" data-v="${t}">${NAV[t]}<span>${{ quests: "Quêtes", tools: "Outils", path: "Parcours", profile: "Profil" }[t]}</span></button>`)
+  <nav class="tabbar">${["quests", "tools", "guild", "path", "profile"]
+    .map((t) => `<button class="${ui.tab === t ? "on" : ""}" data-action="tab" data-v="${t}">${NAV[t]}<span>${{ quests: "Quêtes", tools: "Outils", guild: "Guilde", path: "Parcours", profile: "Profil" }[t]}</span></button>`)
     .join("")}</nav>`;
 }
 
@@ -1192,6 +1194,86 @@ function questCard(q) {
       ? `<img class="q-photo" src="${state.log[today()][q.id].photo}" alt="Photo de preuve">`
       : `<span class="q-check">${q.proof === "photo" && !done ? ico("camera") : CHECK}</span>`}</div>
   </button>`;
+}
+
+// ---------- Guilde : compte, amis, classements ----------
+const AUTH_ERRORS = [
+  [/invalid login/i, "Email ou mot de passe incorrect."],
+  [/already registered|already exists/i, "Un compte existe déjà avec cet email. Connecte-toi."],
+  [/at least 6/i, "Le mot de passe doit faire au moins 6 caractères."],
+  [/not confirmed/i, "Confirme d'abord ton email (regarde dans tes mails)."],
+  [/duplicate key|unique/i, "Ce pseudo est déjà pris."],
+  [/rate limit|too many/i, "Trop d'essais. Réessaie dans quelques minutes."],
+  [/fetch|network/i, "Pas de connexion au serveur. Vérifie ton réseau."],
+];
+const authMsg = (m) => (AUTH_ERRORS.find(([re]) => re.test(m)) || [0, m])[1];
+
+function avatarDot(p, size = 40) {
+  return `<span class="g-av" style="width:${size}px;height:${size}px">${p.avatar ? `<img src="${p.avatar}" alt="">` : esc((p.display_name || p.username || "?")[0].toUpperCase())}</span>`;
+}
+function boardRow(p, k, valueLabel) {
+  const me = cloud.user && p.id === cloud.user.id;
+  const r = RANKS.find((x) => x.letter === p.rank) || RANKS[0];
+  return `<div class="g-row ${me ? "me" : ""}">
+    <b class="g-pos ${k < 3 ? "top" + (k + 1) : ""}">${k + 1}</b>
+    ${avatarDot(p)}
+    <div class="g-who"><b>${esc(p.display_name || p.username)}${me ? " (toi)" : ""}</b><small>@${esc(p.username)} · ${ico("bolt")} ${p.streak || 0} j</small></div>
+    <span class="g-rank">${emblem(r, 30)}</span>
+    <em class="g-val">${valueLabel(p)}</em></div>`;
+}
+
+function viewGuild() {
+  if (!cloud.enabled) {
+    return `${hud()}<h1 class="page-title">Guilde</h1>
+      ${mangaCard({ kicker: "Bientôt en ligne", title: "Amis, classements et saisons partagées.", text: "Cette version de l'appli fonctionne hors ligne. La Guilde s'active dès que l'appli est reliée à son serveur.", seal: false })}`;
+  }
+  if (!cloud.user) {
+    const up = ui.authMode !== "login";
+    return `${hud()}<h1 class="page-title">Guilde</h1>
+      <p class="sub">Crée ton compte pour ajouter des amis, apparaître dans les classements et retrouver ta progression sur un autre téléphone.</p>
+      <div class="seg wide"><button class="${up ? "on" : ""}" data-action="authmode" data-v="signup">Créer un compte</button><button class="${up ? "" : "on"}" data-action="authmode" data-v="login">Se connecter</button></div>
+      <form class="auth frame" id="auth-form">
+        ${up ? `<label>Pseudo<input id="au-user" name="username" autocomplete="username" maxlength="20" placeholder="ex : mohamed_92" required pattern="[a-z0-9_]{3,20}" title="3 à 20 caractères : minuscules, chiffres, _"></label>` : ""}
+        <label>Email<input id="au-email" name="email" type="email" autocomplete="email" required></label>
+        <label>Mot de passe<input id="au-pass" name="password" type="password" autocomplete="${up ? "new-password" : "current-password"}" minlength="6" required></label>
+        ${ui.authError ? `<p class="auth-err">${esc(ui.authError)}</p>` : ""}
+        ${ui.authInfo ? `<p class="auth-ok">${esc(ui.authInfo)}</p>` : ""}
+        <button class="btn primary" type="submit" ${ui.authBusy ? "disabled" : ""}>${ui.authBusy ? "Un instant…" : up ? "Créer mon compte" : "Me connecter"}</button>
+      </form>`;
+  }
+  if (!cloud.profile) {
+    return `${hud()}<h1 class="page-title">Guilde</h1>
+      <form class="auth frame" id="pseudo-form"><label>Choisis ton pseudo<input id="au-user2" name="username" maxlength="20" required pattern="[a-z0-9_]{3,20}" placeholder="ex : mohamed_92"></label>
+      ${ui.authError ? `<p class="auth-err">${esc(ui.authError)}</p>` : ""}
+      <button class="btn primary" type="submit">Valider</button></form>`;
+  }
+  const me = cloud.profile;
+  const b = ui.board || "friends";
+  const d = cloud.data;
+  const ev = eventAt();
+  const val = b === "season" ? (p) => `${p.days}/${EVENT_GOAL}` : (p) => `${(p.xp || 0).toLocaleString("fr-FR")} XP`;
+  return `${hud()}
+    <h1 class="page-title">Guilde</h1>
+    <div class="g-me frame">${avatarDot({ ...me, avatar: state.avatar || me.avatar }, 56)}
+      <div><b>${esc(state.name)}</b><small>@${esc(me.username)}</small></div>
+      <button class="icon-btn" data-action="copyuser" aria-label="Copier mon pseudo">${ico("copy")}</button></div>
+    <form class="g-add" id="friend-form"><label class="text-wrap">${ico("people")}<input class="text-in" id="friend-in" name="u" placeholder="Pseudo d'un ami" autocomplete="off" maxlength="20"></label>
+      <button class="btn small" type="submit">Ajouter</button></form>
+    ${d.incoming.length ? `<section class="card"><h3>Demandes reçues</h3>${d.incoming.map((p) => `<div class="g-req">${avatarDot(p, 34)}<b>@${esc(p.username)}</b>
+      <button class="btn small" data-action="faccept" data-v="${p.link}">Accepter</button><button class="icon-btn danger" data-action="fremove" data-v="${p.link}" aria-label="Refuser">✕</button></div>`).join("")}</section>` : ""}
+    <div class="seg wide">${[["friends", "Amis"], ["season", "Saison"], ["world", "Monde"]].map(([k, n]) => `<button class="${b === k ? "on" : ""}" data-action="board" data-v="${k}">${n}</button>`).join("")}</div>
+    ${b === "season" ? `<p class="sub small">${ev.active ? `Épreuve en cours : <b>${ev.name}</b>` : `Dernière épreuve : <b>${ev.name}</b>`} · classement par journées complètes.</p>` : ""}
+    <section class="g-board">${cloud.status === "loading" && !d.board.length ? `<p class="sub">Chargement…</p>`
+      : cloud.status === "error" ? `<p class="auth-err">${esc(authMsg(cloud.error))}</p>`
+      : d.board.length ? d.board.map((p, k) => boardRow(p, k, val)).join("")
+      : `<p class="sub">${b === "friends" ? "Ajoute un ami avec son pseudo pour commencer un classement." : "Personne pour l'instant. Sois le premier !"}</p>`}</section>
+    ${d.outgoing.length ? `<p class="sub small">En attente : ${d.outgoing.map((p) => "@" + esc(p.username)).join(", ")}</p>` : ""}
+    <button class="row-btn danger" data-action="logout">Se déconnecter</button>`;
+}
+
+async function guildLoad() {
+  await cloudRefresh(ui.board || "friends");
+  if (ui.screen === "app" && ui.tab === "guild") render();
 }
 
 // ---------- Outils ----------
@@ -1806,6 +1888,33 @@ const actions = {
     avatarInput.value = "";
     avatarInput.click();
   },
+  authmode(el) {
+    ui.authMode = el.dataset.v;
+    ui.authError = ui.authInfo = "";
+    render();
+  },
+  board(el) {
+    ui.board = el.dataset.v;
+    cloud.data.board = [];
+    render();
+    guildLoad();
+  },
+  async faccept(el) {
+    try { await cloud.api.accept(Number(el.dataset.v)); toast(`${ico("people")} Nouvel ami dans ta guilde`); } catch (e) { toast(authMsg(e.message)); }
+    guildLoad();
+  },
+  async fremove(el) {
+    try { await cloud.api.remove(Number(el.dataset.v)); } catch (e) { toast(authMsg(e.message)); }
+    guildLoad();
+  },
+  async copyuser() {
+    try { await navigator.clipboard.writeText(cloud.profile.username); toast("Pseudo copié"); } catch { toast(`Ton pseudo : @${cloud.profile.username}`); }
+  },
+  async logout() {
+    await cloud.api.signOut();
+    cloud.user = cloud.profile = null;
+    render();
+  },
   radarday(el) {
     ui.radarDay = Number(el.dataset.v);
     render();
@@ -1822,6 +1931,7 @@ const actions = {
   },
   tab(el) {
     ui.tab = el.dataset.v;
+    if (ui.tab === "guild") guildLoad();
     render();
   },
   filter(el) {
@@ -1906,8 +2016,50 @@ $app.addEventListener("change", (e) => {
   render();
 });
 
-$app.addEventListener("submit", (e) => {
+$app.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const f0 = e.target;
+  if (f0.id === "auth-form") {
+    const up = ui.authMode !== "login";
+    const email = f0.email.value.trim(), pass = f0.password.value;
+    const username = up ? f0.username.value.trim().toLowerCase() : "";
+    ui.authError = ui.authInfo = "";
+    if (up && !/^[a-z0-9_]{3,20}$/.test(username)) { ui.authError = "Pseudo : 3 à 20 caractères, minuscules, chiffres ou _."; return render(); }
+    ui.authBusy = true; render();
+    try {
+      if (up) {
+        if (!(await cloud.api.usernameFree(username).catch(() => true))) throw new Error("duplicate key");
+        ui.pendingUsername = username;
+        const r = await cloud.api.signUp(email, pass, username);
+        if (r.needsConfirm) ui.authInfo = "Compte créé ! Clique sur le lien reçu par email, puis connecte-toi.";
+        else await cloudAfterLogin(r.user);
+      } else await cloudAfterLogin(await cloud.api.signIn(email, pass));
+    } catch (err) { ui.authError = authMsg(err.message); }
+    ui.authBusy = false;
+    render();
+    if (cloud.profile) guildLoad();
+    return;
+  }
+  if (f0.id === "pseudo-form") {
+    const u = f0.username.value.trim().toLowerCase();
+    try { cloud.profile = await cloud.api.createProfile({ id: cloud.user.id, username: u, ...myStats() }); ui.authError = ""; }
+    catch (err) { ui.authError = authMsg(err.message); }
+    render(); guildLoad();
+    return;
+  }
+  if (f0.id === "friend-form") {
+    const u = f0.u.value.trim().toLowerCase().replace(/^@/, "");
+    if (!u) return;
+    try {
+      const p = await cloud.api.findByUsername(u);
+      if (!p) throw new Error("Aucun joueur avec ce pseudo.");
+      if (p.id === cloud.user.id) throw new Error("C'est ton propre pseudo !");
+      await cloud.api.request(cloud.user.id, p.id);
+      toast(`Demande envoyée à @${u}`);
+    } catch (err) { toast(/duplicate|unique/i.test(err.message) ? "Vous êtes déjà liés ou une demande existe." : authMsg(err.message)); }
+    guildLoad();
+    return;
+  }
   const f = e.target;
   const title = f.title.value.trim();
   if (!title) return;
@@ -1924,6 +2076,8 @@ document.addEventListener("visibilitychange", () => {
     if (ui.screen === "app") render();
   }
 });
+
+cloudBoot();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
