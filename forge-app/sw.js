@@ -1,6 +1,6 @@
 // Cache hors-ligne minimal : l'appli fonctionne sans réseau après la 1re visite.
-const CACHE = "forge-v11";
-const FILES = ["./", "index.html", "styles.css", "data.js", "art.js", "config.js", "vendor/supabase.js", "cloud.js", "app.js", "icon-512.png", "apple-touch-icon.png", "manifest.webmanifest", "assets/logo-flame.webp", "assets/logo.webp", "assets/hero.webp", "assets/emblem-hero.webp"];
+const CACHE = "forge-v12";
+const FILES = ["./", "index.html", "styles.css", "data.js", "art.js", "config.js", "vendor/supabase.js", "cloud.js", "app.js", "icon-512.png", "apple-touch-icon.png", "manifest.webmanifest", "assets/logo-flame.webp", "assets/logo.webp", "assets/hero.webp", "assets/emblem-hero.webp", "assets/hero-soul.webp", "assets/welcome-scene.webp"];
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))));
 self.addEventListener("activate", (e) =>
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))))

@@ -113,3 +113,16 @@ begin
 end $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ---------- Personnages générés par IA ----------
+create table if not exists public.hero_generations (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  path text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists hero_generations_user on public.hero_generations (user_id, created_at);
+alter table public.hero_generations enable row level security;
+drop policy if exists "ses générations" on public.hero_generations;
+create policy "ses générations" on public.hero_generations for select to authenticated using (user_id = auth.uid());
+grant select on public.hero_generations to authenticated;

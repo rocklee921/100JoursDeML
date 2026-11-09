@@ -38,6 +38,15 @@ function supabaseApi(sb) {
     },
     async signIn(email, password) { return fail(await sb.auth.signInWithPassword({ email, password })).user; },
     async signOut() { await sb.auth.signOut(); },
+    async generateHero(body) {
+      const r = await sb.functions.invoke("generate-hero", { body });
+      if (r.error) {
+        let msg = "La génération a échoué. Réessaie dans un instant.";
+        try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch {}
+        throw new Error(msg);
+      }
+      return r.data;
+    },
     async deleteAccount() { fail(await sb.rpc("delete_my_account")); await sb.auth.signOut(); },
     async getProfile(id) { return fail(await sb.from("profiles").select(COLS).eq("id", id).maybeSingle()); },
     async createProfile(p) { return fail(await sb.from("profiles").insert(p).select(COLS).single()); },

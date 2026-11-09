@@ -666,6 +666,7 @@ function render() {
   const changed = render.last !== key;
   render.last = key;
   $app.innerHTML = screens[ui.screen]();
+  if (changed) { const sc = $app.querySelector(".screen"); if (sc) sc.classList.add("enter"); }
   if (changed) { $app.scrollTop = 0; window.scrollTo(0, 0); }
   if (ui.screen === "analyzing") runAnalysis();
   setupInk();
@@ -679,7 +680,7 @@ const embers = () =>
   ).join("")}</div>`;
 
 // Carte papier manga : kicker, titre, texte, lien, personnage et sceau.
-function mangaCard({ kicker, title, text, link, linkAction, seal = true }) {
+function mangaCard({ kicker, title, text, link, linkAction, seal = true, hero = "hero" }) {
   return `<article class="mcard">
     <div class="mcard-in">
       <small class="mc-kick">${kicker}</small>
@@ -687,19 +688,18 @@ function mangaCard({ kicker, title, text, link, linkAction, seal = true }) {
       <p class="mc-text">${text}</p>
       ${link ? `<button class="mc-link" data-action="${linkAction || "how"}">${link} ›</button>` : ""}
     </div>
-    <div class="mc-art"><img class="mhero-img" src="assets/hero.webp" alt="" aria-hidden="true">${seal ? waxSeal() : ""}</div>
+    <div class="mc-art"><img class="mhero-img" src="assets/${hero}.webp" alt="" aria-hidden="true"></div>${seal ? `<div class="mc-seal">${waxSeal()}</div>` : ""}
   </article>`;
 }
 
 function viewWelcome() {
   return `<section class="screen welcome">
-    <div class="hero-scene">${scene({ signs: ["J7", "J30", "J" + CHALLENGE_DAYS] })}${embers()}</div>
-    <div class="welcome-top">${LOGO}<div class="brand">SOUL<br>LEVELING</div></div>
+    <div class="welcome-art"><img src="assets/welcome-scene.webp" alt="Soul Leveling : un chasseur face aux rangs E à S" fetchpriority="high">${embers()}</div>
     <div class="welcome-body frame">
-      <span class="pill">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS</span>
-      <h1>Monte de niveau.<br>Dans la <em>vraie vie.</em></h1>
-      <p class="lead">Des quêtes quotidiennes, de l'XP, des rangs à gravir. Ta vie devient ton terrain d'entraînement.</p>
-      <button class="btn primary" data-action="start">Commencer l'épreuve</button>
+      <span class="w-kick">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS ◆</span>
+      <h1>Monte de niveau.<br>Élève ton <em>âme.</em></h1>
+      <p class="lead">Des quêtes, de l'XP, des rangs et un système pour devenir une meilleure version de <u>toi-même</u>.</p>
+      <button class="btn primary w-cta" data-action="start">Commencer l'épreuve <span aria-hidden="true">→</span></button>
       <button class="link" data-action="how">Pourquoi ${CHALLENGE_DAYS} jours ?</button>
     </div>
   </section>`;
@@ -1101,7 +1101,7 @@ function viewReveal() {
     <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
-    ${mangaCard({ kicker: "Ton pacte t'attend", title: `${esc(name)}, ton histoire commence.`, text: "Chaque quête est une case de ton manga. À la fin de la semaine, tu ne seras déjà plus le même personnage." })}
+    ${mangaCard({ kicker: "Ton pacte t'attend", title: `${esc(name)}, ton histoire commence.`, text: "Chaque quête est une case de ton manga. À la fin de la semaine, tu ne seras déjà plus le même personnage.", hero: "hero-soul" })}
     <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR ${CHALLENGE_DAYS}</small><b>${fmt(endIso)}</b></div></div>
     <div class="card recap">
       <h3>Créé à partir de tes réponses</h3>
@@ -1465,7 +1465,7 @@ function viewPath() {
         .map(([k, s]) => `<div class="attr"><span>${ico(s.ico)} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
         .join("")}
     </section>
-    ${cycleOf(day) === 1 ? mangaCard({ kicker: `Débloqué au jour ${CHALLENGE_DAYS}`, title: "Le Mode Système.", text: `Tes quêtes deviennent ton quotidien, en cycles avec étoiles de prestige. Encore ${CHALLENGE_DAYS - day + 1} jours.` }) : ""}
+    ${cycleOf(day) === 1 ? mangaCard({ kicker: `Débloqué au jour ${CHALLENGE_DAYS}`, title: "Le Mode Système.", text: `Tes quêtes deviennent ton quotidien, en cycles avec étoiles de prestige. Encore ${CHALLENGE_DAYS - day + 1} jours.`, hero: "hero-soul" }) : ""}
     ${false ? `<section class="card unlock-teaser frame">
       <h3>Débloqué au jour ${CHALLENGE_DAYS}</h3>
       <div class="ut-row">${ico("lock")}<div><b>Mode Système</b><small>Tes quêtes deviennent ton quotidien, sans fin. Cycles de ${CHALLENGE_DAYS} jours avec étoiles de prestige.</small></div></div>
@@ -1501,11 +1501,13 @@ function viewPath() {
 }
 
 function viewProfile() {
+  if (ui.creator) return viewCreator();
   const L = levelInfo(totalXp());
   const r = rankFor(L.lvl);
   return `<div class="profile-head">
       <button class="avatar ${state.avatar ? "has-img" : ""}" data-action="avatar" style="--rc:${r.color}" aria-label="Changer mon avatar">${state.avatar ? `<img src="${state.avatar}" alt="Mon avatar manga">` : esc(state.name[0].toUpperCase())}<span class="av-emblem">${emblem(r, 54)}</span></button>
-      <button class="link av-link" data-action="avatar">${state.avatar ? "Refaire mon avatar manga" : "Créer mon avatar manga à partir d'un selfie"}</button>
+      <button class="btn small av-cta" data-action="creator" data-v="1">${ico("rise")} Crée ton chasseur avec l'IA</button>
+      <button class="link av-link" data-action="avatar">Filtre manga rapide (hors ligne)</button>
       <h1>${esc(state.name)}</h1>
       <p>${r.name} · Niveau ${L.lvl}${mbtiOf(state.answers) ? ` · ${mbtiOf(state.answers)}` : ""}</p>
     </div>
@@ -1674,6 +1676,71 @@ function shrinkPhoto(file) {
     img.src = url;
   });
 }
+
+// ---------- Crée ton chasseur (IA) ----------
+const HERO_OPTS = [
+  ["gender", "Genre", [["man", "Homme"], ["woman", "Femme"], ["neutral", "Non précisé"]]],
+  ["skin", "Teint", [["s1", "#f6dcc8"], ["s2", "#e9bf9e"], ["s3", "#d2a07a"], ["s4", "#b07a52"], ["s5", "#7d4f31"], ["s6", "#4a2c1c"]]],
+  ["hair", "Cheveux", [["short", "Courts en pointes"], ["long", "Longs"], ["curly", "Bouclés"], ["afro", "Afro"], ["braids", "Tresses"], ["shaved", "Rasés"], ["bald", "Chauve"], ["hijab", "Hijab"]]],
+  ["hairColor", "Couleur des cheveux", [["black", "Noirs"], ["brown", "Bruns"], ["blond", "Blonds"], ["red", "Roux"], ["white", "Blancs"], ["blue", "Bleu nuit"]]],
+  ["eyes", "Yeux", [["dark", "Noirs"], ["brown", "Marron"], ["green", "Verts"], ["blue", "Bleus"], ["grey", "Gris"]]],
+  ["build", "Corpulence", [["slim", "Mince"], ["athletic", "Athlétique"], ["strong", "Costaud"], ["round", "Rond"]]],
+  ["beard", "Barbe", [["none", "Aucune"], ["stubble", "Courte"], ["beard", "Barbe"]]],
+  ["glasses", "Lunettes", [["no", "Non"], ["yes", "Oui"]]],
+  ["outfit", "Tenue", [["hunter", "Chasseur"], ["street", "Streetwear"], ["samurai", "Samouraï"], ["sport", "Sport"], ["mage", "Mage"]]],
+];
+function viewCreator() {
+  const t = (ui.hero = ui.hero || { gender: "man", skin: "s3", hair: "short", hairColor: "black", eyes: "dark", build: "athletic", beard: "none", glasses: "no", outfit: "hunter" });
+  if (!cloud.enabled || !cloud.user) {
+    return `<button class="back-link" data-action="creator" data-v="">${BACK} Profil</button>
+      ${mangaCard({ kicker: "Crée ton chasseur", title: "Connecte-toi d'abord.", text: "La création par IA se fait sur le serveur. Crée ton compte dans l'onglet Guilde, puis reviens ici.", seal: false })}
+      <button class="btn primary" data-action="tab" data-v="guild">Aller à la Guilde</button>`;
+  }
+  return `<button class="back-link" data-action="creator" data-v="">${BACK} Profil</button>
+    <div class="sys-tag">[SYSTÈME] CRÉATION DU CHASSEUR</div>
+    <h2 class="big-title">À quoi ressembles-tu ?</h2>
+    <p class="sub">L'IA dessine ton personnage manga à partir de ces choix. Il deviendra ton avatar dans la Guilde.</p>
+    ${ui.heroResult ? `<div class="hero-result frame"><img src="${esc(ui.heroResult)}" alt="Ton personnage manga"><p class="sub small">Ton chasseur est prêt. Il est maintenant ton avatar.</p></div>` : ""}
+    <div class="creator">${HERO_OPTS.filter(([k]) => !(k === "hairColor" && ["hijab", "bald"].includes(t.hair)) && !(k === "beard" && t.gender === "woman"))
+      .map(([k, label, opts]) => `<div class="cr-row"><span>${label}</span><div class="cr-opts ${k === "skin" ? "swatches" : ""}">${opts.map(([v, l]) =>
+        k === "skin" ? `<button class="sw ${t[k] === v ? "on" : ""}" style="background:${l}" data-action="htrait" data-k="${k}" data-v="${v}" aria-label="Teint ${v.slice(1)}"></button>`
+        : `<button class="chip-s ${t[k] === v ? "on" : ""}" data-action="htrait" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div></div>`).join("")}
+      <div class="cr-row"><span>Selfie (facultatif)</span>
+        <div class="cr-selfie">${ui.selfie ? `<img src="${ui.selfie}" alt="Ton selfie"><button class="chip-s" data-action="hselfie" data-v="clear">Retirer</button>`
+          : `<button class="chip-s" data-action="hselfie">${ico("camera")} Ajouter un selfie</button>`}</div>
+        ${ui.selfie ? `<label class="consent"><input type="checkbox" id="h-consent" ${ui.consent ? "checked" : ""}> J'accepte que ma photo soit envoyée à OpenAI pour dessiner mon personnage. Elle n'est pas conservée par Soul Leveling.</label>` : ""}
+      </div>
+    </div>
+    ${ui.heroError ? `<p class="auth-err">${esc(ui.heroError)}</p>` : ""}
+    <button class="btn primary" data-action="hgen" ${ui.heroBusy ? "disabled" : ""}>${ui.heroBusy ? "Le Système dessine ton chasseur…" : ui.heroResult ? "Générer une autre version" : "Générer mon chasseur"}</button>
+    <p class="sub small center">3 créations par mois. Ton rang actuel change l'aura de ton personnage.</p>`;
+}
+
+function shrinkSelfie(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 768 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+const selfieInput = document.createElement("input");
+Object.assign(selfieInput, { type: "file", accept: "image/*", hidden: true });
+selfieInput.setAttribute("capture", "user");
+document.body.appendChild(selfieInput);
+selfieInput.addEventListener("change", async () => {
+  const f = selfieInput.files && selfieInput.files[0];
+  if (!f) return;
+  try { ui.selfie = await shrinkSelfie(f); ui.consent = false; render(); } catch { toast("Impossible de lire cette photo."); }
+});
 
 // ---------- Avatar manga (filtre local : encrage, trame, aplats) ----------
 function mangaFilter(file) {
@@ -1907,6 +1974,37 @@ const actions = {
     document.querySelectorAll(".chip-s").forEach((b) => b.classList.toggle("on", b === el));
     inp.focus();
   },
+  creator(el) {
+    ui.creator = !!el.dataset.v;
+    ui.heroError = "";
+    render();
+  },
+  htrait(el) {
+    ui.hero[el.dataset.k] = el.dataset.v;
+    render();
+  },
+  hselfie(el) {
+    if (el.dataset.v === "clear") { ui.selfie = null; return render(); }
+    selfieInput.value = "";
+    selfieInput.click();
+  },
+  async hgen() {
+    const box = document.getElementById("h-consent");
+    if (ui.selfie && !(box && box.checked)) { ui.heroError = "Coche la case d'accord pour utiliser ton selfie, ou retire-le."; return render(); }
+    ui.consent = !!(box && box.checked);
+    ui.heroBusy = true; ui.heroError = ""; render();
+    try {
+      const traits = { ...ui.hero, rank: rankFor(levelInfo(totalXp()).lvl).letter };
+      const r = await cloud.api.generateHero({ traits, selfie: ui.selfie || undefined });
+      ui.heroResult = r.url;
+      state.avatar = r.url;
+      if (cloud.profile) cloud.profile.avatar = r.url;
+      save();
+      impactFrame(); vibrate([40, 60, 120]);
+    } catch (e) { ui.heroError = e.message; }
+    ui.heroBusy = false;
+    render();
+  },
   avatar() {
     avatarInput.value = "";
     avatarInput.click();
@@ -1981,6 +2079,7 @@ const actions = {
   },
   tab(el) {
     ui.tab = el.dataset.v;
+    ui.creator = false;
     if (ui.tab === "guild") guildLoad();
     render();
   },

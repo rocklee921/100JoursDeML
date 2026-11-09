@@ -504,7 +504,8 @@ blockquote { margin-top: 26px; color: var(--muted); font-style: italic; text-ali
 .q-check .ico { width: 18px; height: 18px; color: var(--muted); }
 
 /* ----- Transitions manga ----- */
-.screen { animation: panel-in .5s cubic-bezier(.2, .9, .25, 1) both; }
+.screen { animation: none; }
+.screen.enter { animation: panel-in .5s cubic-bezier(.2, .9, .25, 1) both; }
 @keyframes panel-in { from { clip-path: polygon(0 0, 8% 0, 0 100%, 0 100%); transform: translateX(-12px); } to { clip-path: polygon(0 0, 140% 0, 100% 100%, 0 100%); transform: none; } }
 .screen.quiz { animation: none; }
 .quiz h2, .quiz .sub, .quiz .options, .quiz .grid-opts, .quiz .slider-wrap, .quiz .text-in { animation: slide-q .38s cubic-bezier(.2, .9, .25, 1) both; }
@@ -866,3 +867,50 @@ img.logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0
 .mhero-img { width: 170px; height: 170px; object-fit: contain; display: block; margin-left: -12px; filter: drop-shadow(3px 3px 0 color-mix(in srgb, var(--ink) 25%, transparent)); animation: hero-in .6s cubic-bezier(.2, .9, .3, 1) both .1s; }
 .mc-art { top: -40px; width: 160px; }
 .unlock-hero { width: 170px; height: 170px; display: block; margin: 8px auto; border-radius: 22px; animation: hex-in .8s cubic-bezier(.2, 1.4, .4, 1) both .1s; }
+
+/* ----- Accueil (maquette) ----- */
+.welcome { justify-content: flex-end; padding-top: 0; }
+.welcome-art { position: absolute; left: 0; right: 0; top: 0; height: 66%; overflow: hidden; }
+.welcome-art img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block;
+  -webkit-mask: linear-gradient(#000 78%, transparent); mask: linear-gradient(#000 78%, transparent); animation: art-in 1.2s ease both; }
+@keyframes art-in { from { transform: scale(1.06); opacity: .3; } }
+:root[data-theme="samurai"] .welcome-art img { filter: hue-rotate(150deg) saturate(1.15); }
+:root[data-theme="zen"] .welcome-art img { filter: hue-rotate(-60deg) saturate(.5) brightness(1.25); }
+:root[data-theme="matrix"] .welcome-art img { filter: hue-rotate(-95deg) saturate(1.2); }
+.welcome-body.frame { margin-top: 0; padding: 22px 18px 16px; z-index: 2; }
+.w-kick { font: 600 11px var(--mono); letter-spacing: .28em; color: var(--gold); }
+.welcome h1 { font-size: clamp(30px, 9vw, 40px); margin: 14px 0 10px; }
+.w-cta { display: flex; align-items: center; justify-content: center; gap: 14px; border-radius: 99px; }
+.w-cta span { font-size: 22px; }
+.welcome .lead u { text-decoration-color: var(--gold); text-underline-offset: 3px; }
+
+/* ----- Personnages ----- */
+.mhero-img { mix-blend-mode: multiply; filter: none; width: 175px; height: 175px; }
+:root[data-theme="matrix"] .mhero-img { mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg); }
+
+/* ----- Créateur de chasseur ----- */
+.av-cta { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; }
+.creator { display: flex; flex-direction: column; gap: 16px; margin: 20px 0; }
+.cr-row > span { display: block; font: 600 11px var(--mono); letter-spacing: .15em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.cr-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.sw { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--line); }
+.sw.on { outline: 3px solid var(--gold); outline-offset: 2px; }
+.cr-selfie { display: flex; align-items: center; gap: 12px; }
+.cr-selfie img { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; }
+.consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.consent input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.hero-result { padding: 10px; margin: 16px 0; text-align: center; }
+.hero-result img { width: 100%; border-radius: 4px; display: block; background: #fff; }
+.center { text-align: center; }
+
+.mc-art { z-index: auto; top: 6px; right: 4px; mix-blend-mode: multiply; }
+.mhero-img { mix-blend-mode: normal; width: 150px; height: 150px; margin-left: 0; }
+:root[data-theme="matrix"] .mc-art { mix-blend-mode: normal; }
+.mcard-in { padding-right: 132px; }
+.welcome-art { height: 72%; }
+.welcome h1 { font-size: clamp(26px, 7.6vw, 34px); }
+.welcome .lead { font-size: 14.5px; margin-bottom: 16px; }
+.welcome-body.frame { padding: 18px 16px 12px; }
+.w-cta { padding: 15px; }
+.mc-seal { position: absolute; right: 18px; bottom: -14px; z-index: 3; }
+.mc-seal .wax { position: static; display: block; }
