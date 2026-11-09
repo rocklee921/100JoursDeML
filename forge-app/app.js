@@ -52,6 +52,11 @@ const ui = {
 };
 
 // ---------- Génération du programme ----------
+// Réponses à choix multiples (compatibles avec les anciennes réponses uniques).
+const all = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+const has = (x, v) => all(x).includes(v);
+const first = (x) => all(x)[0];
+
 function equipOf(a) {
   const map = { muscu: "gym", calisth: "gym", run: "outdoor", walk: "outdoor", bike: "bike", swim: "pool" };
   return [...new Set([...(a.equipment || []).filter((e) => e !== "none"), ...(a.sports || []).map((x) => map[x]).filter(Boolean)])];
@@ -73,10 +78,10 @@ function buildProgram(a) {
 
   add({ id: "wake", title: `Se lever à ${(a.wake || "07:00").replace(":", "h").replace(/^0/, "")}`, sub: "Debout au premier réveil", stat: "DIS", xp: 20 });
   (a.quit || []).filter((q) => q !== "none").forEach(fromSpecial);
-  fromSpecial(a.enemy);
-  if (a.mindIssue) fromSpecial(a.mindIssue);
+  all(a.enemy).forEach(fromSpecial);
+  all(a.mindIssue).forEach(fromSpecial);
   if ((a.focus || []).includes("faith")) {
-    const list = SPECIAL[a.faith || "other"];
+    const list = SPECIAL[a.faith === "more" ? a.faithOther || "other" : a.faith || "other"];
     list.slice(0, i >= 3 ? list.length : 2).forEach((s) => add({ ...s }));
     if (i >= 2) fromSpecial("kindness");
   }
@@ -147,7 +152,7 @@ function profileScores(a) {
   const sleep = Number(a.sleep) || 7.5;
   const quit = (a.quit || []).filter((q) => q !== "none");
   const s = {
-    FOR: 15 + Math.min(steps, 12000) / 180 + (equipOf(a).length ? 8 : 0) + (a.coping === "sport" ? 10 : 0),
+    FOR: 15 + Math.min(steps, 12000) / 180 + (equipOf(a).length ? 8 : 0) + (has(a.coping, "sport") ? 10 : 0),
     MEN: { great: 80, good: 65, meh: 48, sad: 28, crisis: 15 }[a.life] ?? 50,
     ENE: { 4.5: 22, 5.5: 38, 7.5: 70, 9: 60 }[sleep] ?? 50,
     SOC: 58,
@@ -156,21 +161,21 @@ function profileScores(a) {
     COU: 55,
     FOI: 45,
   };
-  if (a.enemy === "doubt") s.COU -= 15;
+  if (has(a.enemy, "doubt")) s.COU -= 15;
   if ((a.focus || []).includes("dare")) s.COU -= 12;
   if ((Number(a.confidence) || 5) <= 3) s.COU -= 8;
   if (["months", "forgot"].includes(a.proud)) s.COU -= 6;
   if ((a.focus || []).includes("faith")) s.FOI -= 5;
   if (["years", "always"].includes(a.duration)) s.MEN -= 10;
-  if (a.coping === "talk") { s.MEN += 8; s.SOC += 15; }
-  if (a.coping === "substances") { s.ENE -= 10; s.DIS -= 8; }
-  if (a.coping === "scroll") s.SAV -= 12;
-  if (a.mindIssue === "lonely") s.SOC -= 28;
-  if (a.mindIssue === "burnout") s.ENE -= 12;
-  if (a.enemy === "phone") s.SAV -= 14;
-  if (a.enemy === "sleep") s.ENE -= 12;
-  if (a.enemy === "doubt") { s.MEN -= 8; s.SOC -= 8; }
-  if (["procrast", "chaos"].includes(a.enemy)) s.DIS -= 14;
+  if (has(a.coping, "talk")) { s.MEN += 8; s.SOC += 15; }
+  if (has(a.coping, "substances")) { s.ENE -= 10; s.DIS -= 8; }
+  if (has(a.coping, "scroll")) s.SAV -= 12;
+  if (has(a.mindIssue, "lonely")) s.SOC -= 28;
+  if (has(a.mindIssue, "burnout")) s.ENE -= 12;
+  if (has(a.enemy, "phone")) s.SAV -= 14;
+  if (has(a.enemy, "sleep")) s.ENE -= 12;
+  if (has(a.enemy, "doubt")) { s.MEN -= 8; s.SOC -= 8; }
+  if (["procrast", "chaos"].some((v) => has(a.enemy, v))) s.DIS -= 14;
   if (quit.includes("junk")) s.ENE -= 10;
   s.DIS -= quit.length * 4;
   s.MEN += { today: 8, days: 4, weeks: 0, months: -6, forgot: -12 }[a.proud] ?? 0;
@@ -244,7 +249,7 @@ function firstActions(a, weak) {
     sleep: ["Écrans coupés à 22h30.", "Mets une alarme « coucher » sur ton téléphone. Elle compte plus que celle du matin."],
     doubt: ["Note une chose réussie aujourd'hui.", "Même minuscule. Tu commences un dossier de preuves."],
     chaos: ["Prépare tes affaires de demain.", "Tenue, sac, clés. 5 minutes ce soir = 30 minutes de calme demain."],
-  }[a.enemy] || ["Couche-toi 30 min plus tôt.", "Ton jour 1 commence ce soir."];
+  }[first(a.enemy)] || ["Couche-toi 30 min plus tôt.", "Ton jour 1 commence ce soir."];
   const tomorrow = {
     FOR: ["10 pompes avant 10h.", "Ou une marche de 10 minutes. Pas un entraînement : un vote pour qui tu deviens."],
     MEN: ["3 minutes de respiration au réveil.", "Inspire 4 s, expire 6 s. Avant de toucher ton téléphone."],
@@ -424,12 +429,14 @@ const sIco = (k) => ico(STATS[k].ico);
 
 // ---------- Écriture au doigt ----------
 const inkStore = {}; // id → dataURL (copié dans l'état au démarrage)
+const INK_COLORS = ["var(--text)", "#f5f5f5", "#111111", "#ef4444", "#f97316", "#facc15", "#22c55e", "#38bdf8", "#a855f7", "#ec4899"];
 function inkPad(id, label, h = 170) {
   return `<div class="ink" data-ink="${id}" style="--h:${h}px">
     <canvas aria-label="${esc(label)}"></canvas>
     <span class="ink-hint">${ico("pen")} ${esc(label)}</span>
     <div class="ink-bar">
-      <span class="ink-colors">${["var(--text)", "var(--gold)", "#f87171"].map((c, k) => `<button type="button" class="ink-c ${k === 0 ? "on" : ""}" data-ink-color="${c}" style="background:${c}" aria-label="Couleur"></button>`).join("")}</span>
+      <span class="ink-colors">${INK_COLORS.map((c, k) => `<button type="button" class="ink-c ${k === 0 ? "on" : ""}" data-ink-color="${c}" style="background:${c}" aria-label="Couleur"></button>`).join("")}</span>
+      <button type="button" class="ink-size" data-ink-size aria-label="Épaisseur du trait"><i></i></button>
       <button type="button" class="ink-clear" data-ink-clear>Effacer</button>
     </div></div>`;
 }
@@ -462,7 +469,12 @@ function setupInk() {
       img.src = prev;
       box.classList.add("has");
     }
-    let drawing = false, last = null;
+    let drawing = false, last = null, size = 1;
+    const sz = box.querySelector("[data-ink-size]");
+    sz.addEventListener("click", () => {
+      size = size === 1 ? 2 : size === 2 ? 3.5 : 1;
+      sz.dataset.s = size;
+    });
     const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure || 0.5 }; };
     cv.addEventListener("pointerdown", (e) => {
       e.preventDefault();
@@ -476,7 +488,7 @@ function setupInk() {
       if (!drawing) return;
       const p = pos(e);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1.6 + p.p * 2.4;
+      ctx.lineWidth = (1.6 + p.p * 2.4) * size;
       ctx.beginPath();
       ctx.moveTo(last.x, last.y);
       ctx.quadraticCurveTo(last.x, last.y, (last.x + p.x) / 2, (last.y + p.y) / 2);
@@ -684,6 +696,7 @@ function viewQuiz() {
   } else if (s.type === "multi") {
     const sel = a[s.id] || [];
     canContinue = sel.length > 0 || s.id === "quit";
+    if (s.max) s.subExtra = `<span class="multi-count" id="multi-count">${sel.filter((x) => x !== s.exclusive).length}/${s.max}</span>`;
     body = `<div class="options">${opts
       .map((o) => `<button class="opt ${sel.includes(o.v) ? "on" : ""}" data-action="toggle" data-v="${esc(o.v)}">${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span><b class="tick">${CHECK}</b></button>`)
       .join("")}</div>`;
@@ -699,7 +712,8 @@ function viewQuiz() {
       <div class="slider-labels"><span>${esc(s.left)}</span><span>${esc(s.right)}</span></div></div>`;
   } else if (s.type === "text") {
     canContinue = s.id !== "name" || !!(a.name && a.name.trim());
-    body = `<input class="text-in" id="${s.id === "name" ? "name-in" : "text-in"}" data-field="${s.id}" maxlength="${s.id === "name" ? 24 : 60}" autocomplete="off" placeholder="${esc(s.placeholder)}" value="${esc(a[s.id] || "")}" data-action="name">`;
+    body = `<label class="text-wrap">${ico("pen")}<input class="text-in" id="${s.id === "name" ? "name-in" : "text-in"}" data-field="${s.id}" maxlength="${s.id === "name" ? 24 : 60}" autocomplete="off" placeholder="${esc(s.placeholder)}" value="${esc(a[s.id] || "")}" data-action="name"></label>
+      ${s.suggestions ? `<div class="sugg">${s.suggestions.map((t) => `<button type="button" class="chip-s" data-action="sugg" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>` : ""}`;
   }
 
   return `<section class="screen quiz">
@@ -710,7 +724,7 @@ function viewQuiz() {
     </div>
     <div class="sys-tag">[SYSTÈME] ÉVALUATION</div>
     <h2>${esc(s.q)}</h2>
-    ${s.sub ? `<p class="sub">${esc(s.sub)}</p>` : ""}
+    ${s.sub || s.subExtra ? `<p class="sub">${s.sub ? esc(s.sub) : ""} ${s.type === "multi" && s.max ? s.subExtra || "" : ""}</p>` : ""}
     ${body}
     ${showContinue ? `<button class="btn primary sticky" data-action="next" ${canContinue ? "" : "disabled"}>Continuer</button>` : ""}
   </section>`;
@@ -796,7 +810,7 @@ function viewSummary() {
   const cards = [
     ["target", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
     ["timer", "Ton rythme", rhythm],
-    ["bolt", "Ton frein", ENEMY_SENTENCE[a.enemy] || ENEMY_SENTENCE.procrast],
+    ["bolt", "Ton frein", all(a.enemy).map((e) => ENEMY_SENTENCE[e]).filter(Boolean).join(" ") || ENEMY_SENTENCE.procrast],
   ];
   return `<section class="screen summary">
     <div class="sys-tag">[SYSTÈME] CE QUE TU M'AS DIT</div>
@@ -896,29 +910,103 @@ function viewPact() {
   return `<section class="screen center-screen pact">
     ${embers()}
     <span class="pill">◆ DERNIÈRE ÉTAPE</span>
-    <h2 class="big-title">Ton pacte.</h2>
+    <h2 class="big-title">Le pacte de sang.</h2>
     <div class="pact-paper">
       <p>Moi, <b>${esc(name)}</b>, je m'engage à mener mes quêtes chaque jour, jusqu'au <b>${end}</b>.</p>
       <p>Je ne cherche pas la perfection. Si je rate un jour, je ne rate jamais le deuxième.</p>
       <p>Dans ${CHALLENGE_DAYS} jours, je serai fier/fière de la personne que je suis devenue.</p>
-      ${inkPad("signature", "Signe ici avec ton doigt", 130)}
+      <div class="seal-zone" id="seal-zone">
+        <svg class="seal-ring" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" pathLength="100" id="seal-prog"/></svg>
+        <span class="seal-hint" id="seal-hint">Ton empreinte ici</span>
+      </div>
     </div>
-    <button class="btn primary sticky" id="sign-btn" ${inkGet("signature") ? "" : "disabled"}>Sceller mon pacte</button>
+    <div class="pact-steps">
+      <button class="blade" id="blade" type="button" aria-label="Piquer ton doigt">
+        <svg viewBox="0 0 64 64" class="finger"><path d="M22 62V30a10 10 0 0 1 20 0v32" class="f-skin"/><path d="M26 30a6 6 0 0 1 12 0" class="f-nail"/></svg>
+        <span class="drop" id="drop"></span>
+        <svg viewBox="0 0 64 64" class="knife"><path d="M8 56 L44 20 L54 10 L50 24 L14 60z" class="k-blade"/><path d="M4 60l6-6 4 4-6 6z" class="k-hilt"/></svg>
+      </button>
+      <p class="sub small" id="pact-step">1. Touche la lame pour piquer ton doigt.</p>
+    </div>
   </section>`;
 }
 
+// Empreinte digitale procédurale, couleur sang.
+function fingerprintSvg(seed) {
+  let r = seed;
+  const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  const ridges = Array.from({ length: 15 }, (_, k) => {
+    const rx = 5 + k * 2.6, ry = rx * 1.32;
+    const dash = `${(6 + rnd() * 20).toFixed(1)} ${(1.5 + rnd() * 4).toFixed(1)}`;
+    return `<ellipse cx="${(50 + (rnd() - 0.5) * 2).toFixed(1)}" cy="${(52 + k * 0.4).toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" stroke-dasharray="${dash}" stroke-dashoffset="${(rnd() * 30).toFixed(1)}"/>`;
+  }).join("");
+  const splat = Array.from({ length: 9 }, () => {
+    const a = rnd() * Math.PI * 2, d = 44 + rnd() * 16;
+    return `<circle cx="${(50 + Math.cos(a) * d).toFixed(1)}" cy="${(52 + Math.sin(a) * d * 1.2).toFixed(1)}" r="${(0.8 + rnd() * 2.6).toFixed(1)}"/>`;
+  }).join("");
+  return `<svg class="print" viewBox="0 0 100 110">
+    <defs><filter id="blood${seed}"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="${seed % 97}"/>
+      <feDisplacementMap in="SourceGraphic" scale="2.4"/></filter>
+      <clipPath id="pc${seed}"><ellipse cx="50" cy="54" rx="36" ry="46"/></clipPath></defs>
+    <g filter="url(#blood${seed})">
+      <ellipse cx="50" cy="54" rx="37" ry="47" class="pr-base"/>
+      <g clip-path="url(#pc${seed})" class="pr-ridges">${ridges}</g>
+      <g class="pr-splat">${splat}</g>
+    </g></svg>`;
+}
+
 function setupPact() {
-  const btn = document.getElementById("sign-btn");
-  document.querySelector('[data-ink="signature"]').addEventListener("inked", () => { btn.disabled = !inkGet("signature"); });
-  btn.addEventListener("click", () => {
-    if (!inkGet("signature")) return;
-    btn.textContent = "Pacte scellé ✓";
-    btn.classList.add("sealed");
-    document.querySelector(".pact-paper").classList.add("sealed");
-    impactFrame();
-    vibrate([30, 50, 80]);
-    setTimeout(() => actions.launch(), 1200);
+  const blade = document.getElementById("blade");
+  const zone = document.getElementById("seal-zone");
+  const step = document.getElementById("pact-step");
+  const prog = document.getElementById("seal-prog");
+  let pricked = false, timer = null, sealed = false;
+  blade.addEventListener("click", () => {
+    if (pricked) return;
+    pricked = true;
+    blade.classList.add("cut");
+    vibrate(40);
+    setTimeout(() => {
+      document.getElementById("drop").classList.add("on");
+      zone.classList.add("ready");
+      document.getElementById("seal-hint").textContent = "Maintiens ton doigt ici";
+      step.textContent = "2. Appuie et maintiens ton doigt sur le pacte pour le sceller.";
+    }, 350);
   });
+  const start = (e) => {
+    if (!pricked || sealed) {
+      if (!pricked) { blade.classList.add("nudge"); setTimeout(() => blade.classList.remove("nudge"), 500); }
+      return;
+    }
+    e.preventDefault();
+    zone.classList.add("holding");
+    prog.style.transition = "stroke-dashoffset 1.3s linear";
+    prog.style.strokeDashoffset = "0";
+    vibrate(20);
+    timer = setTimeout(() => {
+      sealed = true;
+      zone.classList.remove("holding");
+      zone.classList.add("sealed");
+      const seed = 1 + Math.floor(Math.random() * 9000);
+      zone.insertAdjacentHTML("beforeend", fingerprintSvg(seed));
+      ui.quiz.answers.seal = seed;
+      document.getElementById("seal-hint").textContent = "";
+      step.innerHTML = "<b>Pacte scellé.</b> Il n'y a plus de retour en arrière.";
+      document.querySelector(".pact-paper").classList.add("sealed");
+      impactFrame();
+      vibrate([60, 40, 120]);
+      setTimeout(() => actions.launch(), 1800);
+    }, 1300);
+  };
+  const stop = () => {
+    if (sealed) return;
+    clearTimeout(timer);
+    zone.classList.remove("holding");
+    prog.style.transition = "stroke-dashoffset .25s";
+    prog.style.strokeDashoffset = "100";
+  };
+  zone.addEventListener("pointerdown", start);
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => zone.addEventListener(ev, stop));
 }
 
 function setupHold() {
@@ -971,7 +1059,8 @@ function viewReveal() {
   const a = ui.quiz.answers;
   const endIso = addDays(today(), CHALLENGE_DAYS - 1);
   const fmt = (iso) => parseYmd(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
-  const enemy = { phone: "Le téléphone", procrast: "La procrastination", sleep: "Le sommeil", doubt: "Le doute", chaos: "Le désordre" }[a.enemy] || "—";
+  const enemyNames = { phone: "Le téléphone", procrast: "La procrastination", sleep: "Le sommeil", doubt: "Le doute", chaos: "Le désordre" };
+  const enemy = all(a.enemy).map((e) => enemyNames[e]).filter(Boolean).join(", ") || "—";
   const focus = QUIZ.find((x) => x.id === "focus").options.filter((o) => (a.focus || []).includes(o.v)).map((o) => o.label).join(", ") || "—";
   return `<section class="screen reveal">
     <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
@@ -1297,7 +1386,8 @@ function viewProfile() {
   const L = levelInfo(totalXp());
   const r = rankFor(L.lvl);
   return `<div class="profile-head">
-      <div class="avatar" style="--rc:${r.color}">${esc(state.name[0].toUpperCase())}<span class="av-emblem">${emblem(r, 54)}</span></div>
+      <button class="avatar ${state.avatar ? "has-img" : ""}" data-action="avatar" style="--rc:${r.color}" aria-label="Changer mon avatar">${state.avatar ? `<img src="${state.avatar}" alt="Mon avatar manga">` : esc(state.name[0].toUpperCase())}<span class="av-emblem">${emblem(r, 54)}</span></button>
+      <button class="link av-link" data-action="avatar">${state.avatar ? "Refaire mon avatar manga" : "Créer mon avatar manga à partir d'un selfie"}</button>
       <h1>${esc(state.name)}</h1>
       <p>${r.name} · Niveau ${L.lvl}${mbtiOf(state.answers) ? ` · ${mbtiOf(state.answers)}` : ""}</p>
     </div>
@@ -1464,6 +1554,90 @@ function shrinkPhoto(file) {
   });
 }
 
+// ---------- Avatar manga (filtre local : encrage, trame, aplats) ----------
+function mangaFilter(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const S = 420;
+      const c = document.createElement("canvas");
+      c.width = c.height = S;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      const k = Math.max(S / img.width, S / img.height);
+      ctx.drawImage(img, (S - img.width * k) / 2, (S - img.height * k) / 2, img.width * k, img.height * k);
+      URL.revokeObjectURL(url);
+      const src = ctx.getImageData(0, 0, S, S).data;
+      const g = new Float32Array(S * S);
+      for (let i = 0; i < S * S; i++) g[i] = 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2];
+      // Niveaux automatiques (2e et 98e centiles)
+      const sorted = Array.from(g).sort((x, y) => x - y);
+      const lo = sorted[(S * S * 0.02) | 0], hi = sorted[(S * S * 0.98) | 0];
+      for (let i = 0; i < g.length; i++) g[i] = Math.min(255, Math.max(0, ((g[i] - lo) / Math.max(1, hi - lo)) * 255));
+      // Flou léger pour des traits propres
+      const b = new Float32Array(S * S);
+      for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+        let t = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) t += g[(y + dy) * S + x + dx];
+        b[y * S + x] = t / 9;
+      }
+      const out = ctx.createImageData(S, S);
+      const o = out.data;
+      const paper = [244, 239, 230], ink = [16, 14, 20];
+      const cell = 5;
+      for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+        const i = y * S + x;
+        let col = paper;
+        if (x > 0 && y > 0 && x < S - 1 && y < S - 1) {
+          const gx = -b[i - S - 1] - 2 * b[i - 1] - b[i + S - 1] + b[i - S + 1] + 2 * b[i + 1] + b[i + S + 1];
+          const gy = -b[i - S - 1] - 2 * b[i - S] - b[i - S + 1] + b[i + S - 1] + 2 * b[i + S] + b[i + S + 1];
+          const edge = Math.hypot(gx, gy);
+          const v = b[i];
+          if (edge > 95 || v < 58) col = ink;
+          else if (v < 150) {
+            // Trame de points (screentone)
+            const cx = (Math.floor(x / cell) + 0.5) * cell, cy = (Math.floor(y / cell) + 0.5) * cell;
+            const r = cell * 0.62 * (1 - (v - 58) / 92);
+            if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) col = ink;
+          }
+        }
+        o[i * 4] = col[0]; o[i * 4 + 1] = col[1]; o[i * 4 + 2] = col[2]; o[i * 4 + 3] = 255;
+      }
+      ctx.putImageData(out, 0, 0);
+      // Lignes de vitesse dans les coins
+      ctx.strokeStyle = "rgba(16,14,20,.55)";
+      for (let n = 0; n < 70; n++) {
+        const a = (n / 70) * Math.PI * 2, r1 = S * (0.62 + Math.random() * 0.06);
+        ctx.lineWidth = 0.6 + Math.random() * 1.6;
+        ctx.beginPath();
+        ctx.moveTo(S / 2 + Math.cos(a) * r1, S / 2 + Math.sin(a) * r1);
+        ctx.lineTo(S / 2 + Math.cos(a) * S, S / 2 + Math.sin(a) * S);
+        ctx.stroke();
+      }
+      resolve(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+const avatarInput = document.createElement("input");
+Object.assign(avatarInput, { type: "file", accept: "image/*", hidden: true });
+avatarInput.setAttribute("capture", "user");
+document.body.appendChild(avatarInput);
+avatarInput.addEventListener("change", async () => {
+  const file = avatarInput.files && avatarInput.files[0];
+  if (!file || !state) return;
+  toast("Encrage en cours…");
+  try {
+    state.avatar = await mangaFilter(file);
+    save();
+    impactFrame();
+    render();
+  } catch {
+    toast("Impossible de lire cette photo. Réessaie.");
+  }
+});
+
 const photoInput = document.createElement("input");
 Object.assign(photoInput, { type: "file", accept: "image/*", id: "photo-in", hidden: true });
 photoInput.setAttribute("capture", "environment");
@@ -1534,7 +1708,10 @@ const actions = {
     else if (s.exclusive === v) sel = [v];
     else {
       sel = sel.filter((x) => x !== s.exclusive);
-      if (s.max && sel.length >= s.max) sel.shift();
+      if (s.max && sel.length >= s.max) {
+        toast(`Maximum ${s.max} choix. Retire-en un pour changer.`);
+        return;
+      }
       sel.push(v);
     }
     ui.quiz.answers[s.id] = sel;
@@ -1543,6 +1720,8 @@ const actions = {
     document.querySelectorAll("[data-action=toggle]").forEach((b) => b.classList.toggle("on", sel.includes(b.dataset.v)));
     const next = document.querySelector("[data-action=next]");
     if (next) next.disabled = !(sel.length > 0 || s.id === "quit");
+    const cnt = document.getElementById("multi-count");
+    if (cnt) cnt.textContent = `${sel.filter((x) => x !== s.exclusive).length}/${s.max}`;
   },
   next() {
     nextStep();
@@ -1599,6 +1778,17 @@ const actions = {
     awardExtra("book-" + b.id, 20, b.stat, 1);
     ui.book = null;
     render();
+  },
+  sugg(el) {
+    const inp = document.querySelector(".text-in");
+    inp.value = el.dataset.v;
+    ui.quiz.answers[inp.dataset.field] = el.dataset.v;
+    document.querySelectorAll(".chip-s").forEach((b) => b.classList.toggle("on", b === el));
+    inp.focus();
+  },
+  avatar() {
+    avatarInput.value = "";
+    avatarInput.click();
   },
   radarday(el) {
     ui.radarDay = Number(el.dataset.v);

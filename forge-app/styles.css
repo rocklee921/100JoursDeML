@@ -724,3 +724,63 @@ body.impact { filter: invert(1) contrast(1.4); }
 .sc-hero { filter: drop-shadow(0 0 1.5px var(--ember)) drop-shadow(0 0 10px var(--ember)); }
 .ev-head em { white-space: nowrap; }
 .banner-emblem { top: 26%; }
+.multi-count { display: inline-block; margin-left: 6px; padding: 2px 9px; border-radius: 99px; font: 700 12px var(--mono); color: var(--on-accent); background: var(--grad); vertical-align: 1px; }
+
+/* ----- Champ texte premium ----- */
+.text-wrap { position: relative; display: block; margin: 30px 0 14px; animation: slide-q .38s cubic-bezier(.2, .9, .25, 1) both .08s; }
+.text-wrap > .ico { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--muted); transition: color .2s; }
+.text-in { margin: 0; padding: 19px 18px 19px 50px; font: 500 17px/1.3 var(--body); letter-spacing: .01em; border-radius: 16px; border: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card2) 70%, transparent), var(--card)); transition: border-color .2s, box-shadow .2s; }
+.text-in::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); font-weight: 400; }
+.text-in:focus { border-color: color-mix(in srgb, var(--gold) 70%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ember) 18%, transparent), 0 8px 30px -10px color-mix(in srgb, var(--ember) 50%, transparent); }
+.text-wrap:focus-within > .ico { color: var(--gold); }
+.sugg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.chip-s { padding: 8px 13px; border-radius: 99px; font-size: 13.5px; color: var(--muted); border: 1px solid var(--line); background: color-mix(in srgb, var(--card) 70%, transparent); transition: all .15s; }
+.chip-s:hover, .chip-s.on { color: var(--text); border-color: color-mix(in srgb, var(--gold) 60%, transparent); background: color-mix(in srgb, var(--ember) 14%, transparent); }
+.quiz .text-in { animation: none; }
+
+/* ----- Pacte de sang ----- */
+:root { --blood: #8f0a14; --blood2: #c4121f; }
+.seal-zone { position: relative; width: 132px; height: 132px; margin: 20px auto 4px; border-radius: 50%; display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none;
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 35%, transparent); transition: transform .2s; }
+.seal-zone.ready { border-color: var(--blood2); animation: seal-pulse 1.4s ease-in-out infinite; cursor: pointer; }
+@keyframes seal-pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--blood2) 18%, transparent); } }
+.seal-zone.holding { transform: scale(.94); animation: none; }
+.seal-zone.sealed { border-color: transparent; animation: none; }
+.seal-ring { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); pointer-events: none; }
+.seal-ring circle { fill: none; stroke: var(--blood2); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
+.seal-zone.sealed .seal-ring { display: none; }
+.seal-hint { font: 600 12px var(--mono); letter-spacing: .05em; color: color-mix(in srgb, var(--ink) 55%, transparent); text-align: center; padding: 0 14px; pointer-events: none; }
+.seal-zone.ready .seal-hint { color: var(--blood); }
+.print { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-12deg); animation: stamp .45s cubic-bezier(.2, 1.6, .4, 1) both; pointer-events: none; }
+@keyframes stamp { from { transform: rotate(-12deg) scale(1.6); opacity: 0; } }
+.pr-base { fill: var(--blood); opacity: .18; }
+.pr-ridges ellipse { fill: none; stroke: var(--blood); stroke-width: 1.6; opacity: .92; }
+.pr-splat circle { fill: var(--blood2); }
+.pact-steps { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 14px; }
+.blade { position: relative; width: 120px; height: 84px; }
+.blade .finger { position: absolute; left: 8px; bottom: 0; width: 64px; height: 64px; }
+.f-skin { fill: #e9c3a6; stroke: #8a5d45; stroke-width: 1.5; }
+.f-nail { fill: #f7e3d6; stroke: #8a5d45; }
+.blade .knife { position: absolute; right: 0; top: 0; width: 64px; height: 64px; transition: transform .3s cubic-bezier(.5, 0, .2, 1); }
+.k-blade { fill: #d6dbe2; stroke: #5b6470; stroke-width: 1.2; }
+.k-hilt { fill: #3b2a20; }
+.blade.cut .knife { transform: translate(-30px, 12px) rotate(-8deg); }
+.blade.nudge { animation: nudge .45s; }
+@keyframes nudge { 25%, 75% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
+.drop { position: absolute; left: 33px; top: 14px; width: 12px; height: 15px; background: var(--blood2); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; transform: scale(0); transform-origin: bottom;
+  box-shadow: inset -2px -2px 0 var(--blood), 0 0 10px color-mix(in srgb, var(--blood2) 60%, transparent); }
+.drop.on { animation: drop-in .5s cubic-bezier(.2, 1.6, .4, 1) forwards; }
+@keyframes drop-in { to { transform: scale(1); } }
+.pact h2.big-title { margin-bottom: 4px; }
+.drop { top: 30px; }
+.ink-colors { flex-wrap: wrap; gap: 6px; }
+.ink-c { width: 20px; height: 20px; }
+.ink-bar { gap: 8px; }
+.ink-size { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); display: grid; place-items: center; margin-left: auto; }
+.ink-size i { width: 6px; height: 6px; border-radius: 50%; background: var(--text); transition: all .15s; }
+.ink-size[data-s="2"] i { width: 10px; height: 10px; }
+.ink-size[data-s="3.5"] i { width: 15px; height: 15px; }
+.avatar { cursor: pointer; overflow: visible; }
+.avatar.has-img img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; filter: contrast(1.05); }
+.av-link { display: block; margin: 18px auto 0; font-size: 13.5px; color: var(--gold); }
