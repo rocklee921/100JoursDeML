@@ -128,3 +128,47 @@ function emblem(rank, size = 64, locked = false) {
     <text x="50" y="91" text-anchor="middle" class="em-letter" fill="${light}">${rank.letter}</text>
   </svg>`;
 }
+
+// Personnage manga original (buste de 3/4, cheveux en pointes), encré avec trame.
+function mangaHero() {
+  const id = "mh" + ++ART_ID;
+  return `<svg class="mhero" viewBox="0 0 160 180" aria-hidden="true">
+    <defs>
+      <pattern id="${id}d" width="4" height="4" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".95" class="mh-ink-f"/></pattern>
+      <pattern id="${id}D" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.6" class="mh-ink-f"/></pattern>
+    </defs>
+    <path d="M20 180 C34 150 58 140 78 142 L92 180z" class="mh-ink-f"/>
+    <path d="M98 136 C118 138 140 150 150 180 L88 180z" class="mh-ink-f"/>
+    <path d="M78 120 L80 152 L104 150 L102 110z" class="mh-paper"/>
+    <path d="M80 126 L80 152 L104 150 L102 122 C94 130 86 130 80 126z" fill="url(#${id}d)"/>
+    <path d="M70 146 L84 160 L100 146 L94 140 L84 150 L76 140z" class="mh-paper"/>
+    <path d="M74 58 C66 66 60 72 58 80 L51 95 L57 98 L58 104 C58 110 60 116 66 123 C74 128 86 124 96 114 L102 98 C104 88 100 72 92 62Z" class="mh-paper"/>
+    <path d="M96 114 C88 120 80 124 72 124 C84 118 92 108 96 96 L102 98z" fill="url(#${id}d)"/>
+    <path d="M98 89 C106 85 109 98 102 105" class="mh-line"/>
+    <path d="M60 77 L79 71" class="mh-line" stroke-width="3.2"/>
+    <path d="M62 84 L77 80 L75 87 C70 90 65 89 62 84z" class="mh-ink-f"/>
+    <circle cx="71.5" cy="83.5" r="1.4" class="mh-paper"/>
+    <path d="M54 96 L57 98" class="mh-line"/>
+    <path d="M60 110 L67 109" class="mh-line"/>
+    <path d="M56 78 L47 70 L60 66 L45 56 L62 52 L51 37 L70 42 L66 22 L83 36 L87 14 L97 34 L109 16 L111 38 L128 28 L121 50 L141 49 L125 62 L142 73 L121 76 L134 93 L112 88 L118 108 L103 97 L99 84 C99 74 95 66 88 62 L80 61 L76 80 L72 64 L66 82 L66 68z" class="mh-paper mh-hair"/>
+    <path d="M84 40 L96 58 M100 30 L104 56 M114 44 L108 62 M70 48 L82 58 M122 64 L110 70" class="mh-line" stroke-width="1.3"/>
+    <path d="M103 97 L112 88 L118 108z M121 76 L134 93 L112 88z" fill="url(#${id}D)"/>
+  </svg>`;
+}
+
+// Sceau de cire.
+function waxSeal() {
+  const id = "ws" + ++ART_ID;
+  const bumps = Array.from({ length: 18 }, (_, k) => {
+    const a = (k / 18) * Math.PI * 2, r = k % 2 ? 44 : 48;
+    return `${(50 + Math.cos(a) * r).toFixed(1)} ${(50 + Math.sin(a) * r).toFixed(1)}`;
+  }).join(" L");
+  return `<svg class="wax" viewBox="0 0 100 100" aria-hidden="true">
+    <defs><radialGradient id="${id}" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#ff8a5c"/><stop offset=".55" stop-color="#c2410c"/><stop offset="1" stop-color="#6b1a06"/></radialGradient></defs>
+    <path d="M${bumps}z" fill="url(#${id})" stroke="#5a1505" stroke-width="1.2"/>
+    <circle cx="50" cy="50" r="31" fill="none" stroke="#7a2208" stroke-width="2.5" opacity=".8"/>
+    <circle cx="50" cy="50" r="31" fill="none" stroke="#ffb08a" stroke-width="1" opacity=".5" transform="translate(-1 -1)"/>
+    <path d="M36 54 L50 40 L64 54 M36 64 L50 50 L64 64" fill="none" stroke="#5a1505" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 53 L50 39 L64 53" fill="none" stroke="#ffb08a" stroke-width="1.2" stroke-linecap="round" opacity=".6"/>
+  </svg>`;
+}

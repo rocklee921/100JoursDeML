@@ -11,8 +11,8 @@
   --grad: linear-gradient(135deg, #2563ff, #38d6ff);
   --ok: #4ade80;
   --gold2: #b8f1ff;
-  --paper: #e6eeff;
-  --ink: #0a1430;
+  --paper: #f1e9d8;
+  --ink: #16121c;
   --on-accent: #031028;
   --panel: #06112a;
   --glow: #0b1d44;
@@ -784,3 +784,42 @@ body.impact { filter: invert(1) contrast(1.4); }
 .avatar { cursor: pointer; overflow: visible; }
 .avatar.has-img img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; filter: contrast(1.05); }
 .av-link { display: block; margin: 18px auto 0; font-size: 13.5px; color: var(--gold); }
+
+/* ===== Cartes papier manga ===== */
+.mcard { position: relative; width: 100%; text-align: left; margin: 18px 0; padding: 7px; border-radius: 8px; background: var(--paper);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent), 6px 7px 0 color-mix(in srgb, var(--ink) 70%, black), 0 18px 40px -16px color-mix(in srgb, var(--ember) 60%, transparent); }
+.mcard-in { position: relative; z-index: 1; border: 2.5px solid var(--ink); border-radius: 4px; padding: 16px 118px 16px 16px; min-height: 150px;
+  background: radial-gradient(color-mix(in srgb, var(--ink) 55%, transparent) 1.1px, transparent 1.5px) right bottom / 7px 7px no-repeat,
+    linear-gradient(transparent, transparent); }
+.mcard-in::after { content: ""; position: absolute; right: 0; bottom: 0; width: 55%; height: 70%; pointer-events: none; z-index: -1;
+  background: radial-gradient(color-mix(in srgb, var(--ink) 70%, transparent) 1.1px, transparent 1.6px) 0 0 / 6px 6px;
+  -webkit-mask: radial-gradient(ellipse at 100% 100%, #000 10%, transparent 70%); mask: radial-gradient(ellipse at 100% 100%, #000 10%, transparent 70%); }
+.mc-kick { display: block; font: 800 11.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ember); }
+.mc-title { font: 800 21px/1.15 var(--display); color: var(--ink); margin: 6px 0 8px; text-wrap: balance; letter-spacing: -.01em; }
+.mc-text { font-size: 14.5px; line-height: 1.45; color: color-mix(in srgb, var(--ink) 82%, transparent); }
+.mc-link { margin-top: 10px; font: 800 15px var(--display); color: var(--ember); padding: 0; }
+.mc-art { position: absolute; right: -6px; top: -26px; width: 140px; height: 180px; z-index: 2; pointer-events: none; }
+.mhero { width: 140px; height: 158px; display: block; filter: drop-shadow(2px 2px 0 color-mix(in srgb, var(--ink) 40%, transparent)); }
+.mh-paper { fill: #fbf7ef; stroke: #141018; stroke-width: 2.2; stroke-linejoin: round; }
+.mh-hair { stroke-width: 2.4; }
+.mh-line { fill: none; stroke: #141018; stroke-width: 2; stroke-linecap: round; }
+.mh-ink-f { fill: #141018; }
+.wax { position: absolute; width: 74px; height: 74px; right: 18px; bottom: -12px; transform: rotate(-12deg); filter: drop-shadow(2px 4px 4px rgb(0 0 0 / .45)); animation: seal-drop .6s cubic-bezier(.2, 1.5, .4, 1) both .3s; }
+@keyframes seal-drop { from { transform: rotate(-40deg) scale(1.8); opacity: 0; } }
+.mhero { animation: hero-in .6s cubic-bezier(.2, .9, .3, 1) both .1s; }
+@keyframes hero-in { from { transform: translateX(24px); opacity: 0; } }
+:root[data-theme="matrix"] .mcard { background: var(--card); }
+:root[data-theme="matrix"] .mc-title, :root[data-theme="matrix"] .mc-text { color: var(--text); }
+:root[data-theme="matrix"] .mcard-in { border-color: var(--line); }
+
+/* Fond « Système » : grille et trame discrètes derrière le manga */
+:root:not([data-theme]) body::before, :root[data-theme="forge"] body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(color-mix(in srgb, var(--ember) 7%, transparent) 1px, transparent 1px) 0 0 / 100% 46px,
+    linear-gradient(90deg, color-mix(in srgb, var(--ember) 7%, transparent) 1px, transparent 1px) 0 0 / 46px 100%;
+  -webkit-mask: radial-gradient(ellipse at 50% 0%, #000, transparent 75%); mask: radial-gradient(ellipse at 50% 0%, #000, transparent 75%); }
+.mc-link { display: block; text-align: left; }
+.mcard-in { padding-right: 128px; }
+.mc-art { right: -10px; top: -44px; width: 160px; height: 100%; }
+.mhero { width: 160px; height: 180px; }
+.wax { width: 66px; height: 66px; right: 14px; top: auto; bottom: -18px; }
+.mc-title { font-size: 20px; }

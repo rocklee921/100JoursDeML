@@ -657,6 +657,19 @@ const embers = () =>
     `<i style="left:${(k * 37) % 100}%;animation-delay:${(k * 0.7) % 6}s;animation-duration:${6 + (k % 5)}s"></i>`
   ).join("")}</div>`;
 
+// Carte papier manga : kicker, titre, texte, lien, personnage et sceau.
+function mangaCard({ kicker, title, text, link, linkAction, seal = true }) {
+  return `<article class="mcard">
+    <div class="mcard-in">
+      <small class="mc-kick">${kicker}</small>
+      <h3 class="mc-title">${title}</h3>
+      <p class="mc-text">${text}</p>
+      ${link ? `<button class="mc-link" data-action="${linkAction || "how"}">${link} ›</button>` : ""}
+    </div>
+    <div class="mc-art">${mangaHero()}${seal ? waxSeal() : ""}</div>
+  </article>`;
+}
+
 function viewWelcome() {
   return `<section class="screen welcome">
     <div class="hero-scene">${scene({ signs: ["J7", "J30", "J" + CHALLENGE_DAYS] })}${embers()}</div>
@@ -1045,6 +1058,7 @@ function viewHowto() {
       <div class="how"><span>2</span><div><b>Chaque quête paie en XP</b><small>L'XP fait monter ton niveau et tes attributs. Valide 70 % de la journée pour un bonus.</small></div></div>
       <div class="how"><span>3</span><div><b>Ta série est sacrée</b><small>Rate un jour, ça arrive. Jamais deux de suite.</small></div></div>
     </div>
+    ${mangaCard({ kicker: `Épreuve des ${CHALLENGE_DAYS} jours`, title: "Termine ton épreuve, débloque le Système.", text: `Valide 70 % de tes journées pendant ${CHALLENGE_DAYS} jours. Le Système devient ton quotidien, avec les épreuves de saison.`, link: "Comment ça marche" })}
     <div class="rank-path">
       ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}">${emblem(r, 46)}<small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
     </div>
@@ -1066,6 +1080,7 @@ function viewReveal() {
     <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
+    ${mangaCard({ kicker: "Ton pacte t'attend", title: `${esc(name)}, ton histoire commence.`, text: "Chaque quête est une case de ton manga. À la fin de la semaine, tu ne seras déjà plus le même personnage." })}
     <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR ${CHALLENGE_DAYS}</small><b>${fmt(endIso)}</b></div></div>
     <div class="card recap">
       <h3>Créé à partir de tes réponses</h3>
@@ -1348,7 +1363,8 @@ function viewPath() {
         .map(([k, s]) => `<div class="attr"><span>${ico(s.ico)} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
         .join("")}
     </section>
-    ${cycleOf(day) === 1 ? `<section class="card unlock-teaser frame">
+    ${cycleOf(day) === 1 ? mangaCard({ kicker: `Débloqué au jour ${CHALLENGE_DAYS}`, title: "Le Mode Système.", text: `Tes quêtes deviennent ton quotidien, en cycles avec étoiles de prestige. Encore ${CHALLENGE_DAYS - day + 1} jours.` }) : ""}
+    ${false ? `<section class="card unlock-teaser frame">
       <h3>Débloqué au jour ${CHALLENGE_DAYS}</h3>
       <div class="ut-row">${ico("lock")}<div><b>Mode Système</b><small>Tes quêtes deviennent ton quotidien, sans fin. Cycles de ${CHALLENGE_DAYS} jours avec étoiles de prestige.</small></div></div>
       <div class="ut-row">${ico("crown")}<div><b>Prestige</b><small>Chaque cycle terminé ajoute une étoile à ton emblème.</small></div></div>
