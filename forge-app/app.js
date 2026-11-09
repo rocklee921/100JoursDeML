@@ -55,26 +55,34 @@ function buildProgram(a) {
     if (!quests.some((x) => x.id === q.id)) quests.push(q);
   };
   const fromSpecial = (k) => {
-    const s = SPECIAL[k];
-    if (s) add({ id: s.id, title: s.title, sub: s.sub, stat: s.stat, xp: s.xp });
+    const v = SPECIAL[k];
+    (Array.isArray(v) ? v : v ? [v] : []).forEach((s) => add({ id: s.id, title: s.title, sub: s.sub, stat: s.stat, xp: s.xp }));
   };
 
   add({ id: "wake", title: `Se lever à ${(a.wake || "07:00").replace(":", "h").replace(/^0/, "")}`, sub: "Debout au premier réveil", stat: "DIS", xp: 20 });
   (a.quit || []).filter((q) => q !== "none").forEach(fromSpecial);
   fromSpecial(a.enemy);
   if (a.mindIssue) fromSpecial(a.mindIssue);
+  if ((a.focus || []).includes("faith")) {
+    const list = SPECIAL[a.faith || "other"];
+    list.slice(0, i >= 3 ? list.length : 2).forEach((s) => add({ ...s }));
+    if (i >= 2) fromSpecial("kindness");
+  }
+  if ((a.focus || []).includes("dare") && a.dream && a.dream.trim()) {
+    add({ id: "dream", title: `Avancer 20 min : ${a.dream.trim().slice(0, 40)}`, sub: "Ton rêve, une brique par jour", stat: "COU", xp: 35 });
+  }
 
   // Au moins une quête qui travaille l'attribut le plus faible.
   const weak = weakestAxis(profileScores(a));
   const equipOk = (c) => !c.needs || (a.equipment || []).includes(c.needs);
   if (!quests.some((q) => q.stat === weak)) {
     const c = CATALOG.find((c) => c.stat === weak && equipOk(c));
-    if (c) add({ id: c.id, title: c.t(c.amt.length ? c.amt[i - 1] : null), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+    if (c) add({ id: c.id, days: c.days, title: c.t(c.amt.length ? c.amt[i - 1] : null), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
   }
 
   // Remplissage équilibré entre les domaines choisis.
   const equip = a.equipment || [];
-  const focus = a.focus && a.focus.length ? a.focus : ["discipline"];
+  const focus = (a.focus && a.focus.length ? a.focus : ["discipline"]).filter((f) => f !== "faith");
   const pools = focus.map((f) =>
     CATALOG.filter((c) => c.focus === f && (!c.needs || equip.includes(c.needs)))
       .sort((x, y) => (y.needs ? 1 : 0) - (x.needs ? 1 : 0))
@@ -87,7 +95,7 @@ function buildProgram(a) {
       const c = pool.shift();
       if (!c) continue;
       const n = c.amt.length ? c.amt[i - 1] : null;
-      add({ id: c.id, title: c.t(n), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+      add({ id: c.id, days: c.days, title: c.t(n), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
       added = true;
     }
     if (!added) break;
@@ -108,7 +116,14 @@ function profileScores(a) {
     SOC: 58,
     SAV: 52,
     DIS: 18 + (Number(a.confidence) || 5) * 6,
+    COU: 55,
+    FOI: 45,
   };
+  if (a.enemy === "doubt") s.COU -= 15;
+  if ((a.focus || []).includes("dare")) s.COU -= 12;
+  if ((Number(a.confidence) || 5) <= 3) s.COU -= 8;
+  if (["months", "forgot"].includes(a.proud)) s.COU -= 6;
+  if ((a.focus || []).includes("faith")) s.FOI -= 5;
   if (["years", "always"].includes(a.duration)) s.MEN -= 10;
   if (a.coping === "talk") { s.MEN += 8; s.SOC += 15; }
   if (a.coping === "substances") { s.ENE -= 10; s.DIS -= 8; }
@@ -125,12 +140,28 @@ function profileScores(a) {
   for (const k in s) s[k] = clamp(s[k]);
   return s;
 }
+let AXES = BASE_AXES;
 const weakestAxis = (sc) => AXES.reduce((w, k) => (sc[k] < sc[w] ? k : w), AXES[0]);
 
-function radarSvg(sc, weak) {
+function projectScores(a, sc) {
+  const prog = buildProgram(a);
+  const proj = {};
+  for (const k of AXES) {
+    const n = prog.filter((q) => q.stat === k).length;
+    proj[k] = Math.min(95, sc[k] + 8 + n * 14);
+  }
+  return proj;
+}
+
+function archetypeFor(a) {
+  if (["sad", "crisis"].includes(a.life)) return ARCHETYPES.PHOENIX;
+  return ARCHETYPES[weakestAxis(profileScores(a))];
+}
+
+function radarSvg(sc, weak, ghost) {
   const C = 150, R = 100;
   const pt = (i, r) => {
-    const ang = (-90 + i * 60) * (Math.PI / 180);
+    const ang = (-90 + (i * 360) / AXES.length) * (Math.PI / 180);
     return [C + r * Math.cos(ang), C + r * Math.sin(ang)];
   };
   const poly = (r) => AXES.map((_, i) => pt(i, r).join(",")).join(" ");
@@ -145,7 +176,8 @@ function radarSvg(sc, weak) {
     const [x, y] = pt(i, (R * sc[k]) / 100);
     return `<circle cx="${x}" cy="${y}" r="${k === weak ? 6 : 3.5}" class="r-dot ${k === weak ? "weak" : ""}"/>`;
   }).join("");
-  return `<svg viewBox="-20 0 340 300" class="radar">${grid}${spokes}
+  const ghostPoly = ghost ? `<polygon points="${AXES.map((k, i) => pt(i, (R * ghost[k]) / 100).join(",")).join(" ")}" class="r-ghost"/>` : "";
+  return `<svg viewBox="-20 0 340 300" class="radar">${grid}${spokes}${ghostPoly}
     <g class="r-shape"><polygon points="${shape}"/>${dots}</g>${labels}</svg>`;
 }
 
@@ -164,6 +196,8 @@ function firstActions(a, weak) {
     ENE: ["Un grand verre d'eau au réveil.", "Puis 5 minutes à la lumière du jour. Ton corps se recalibre."],
     SOC: ["Envoie un message à quelqu'un.", "Pas un « ça va ? » : une vraie question, ou un souvenir partagé."],
     SAV: ["Lis 5 pages au lieu de scroller.", "Le livre posé sur ton oreiller, pour ne pas l'oublier."],
+    COU: ["Fais UNE chose que tu repousses par peur.", "Un message, une question, une inscription. 2 minutes de courage suffisent."],
+    FOI: ["Un rendez-vous spirituel au réveil.", "Avant le téléphone : prière, lecture ou silence. 5 minutes."],
     DIS: ["Fais ton lit en te levant.", "30 secondes. Ta première victoire de la journée, avant même le café."],
   }[weak];
   const week = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
@@ -171,6 +205,12 @@ function firstActions(a, weak) {
 }
 
 const FOCUS_SENTENCE = {
+  food: "Je veux mieux manger et retrouver de l'énergie.",
+  sleep: "Je veux enfin dormir correctement.",
+  procrast: "Je veux arrêter de tout remettre à demain.",
+  culture: "Je veux devenir plus cultivé et plus vif d'esprit.",
+  faith: "Je veux remettre ma foi au centre de ma vie.",
+  dare: "Je veux oser ce que je n'ai jamais osé.",
   body: "Je veux retrouver de la force dans mon corps.",
   mind: "Je veux retrouver un esprit apaisé.",
   work: "Je veux être enfin efficace dans mon travail.",
@@ -196,14 +236,19 @@ function startChallenge() {
     quests: buildProgram(a),
     log: {},
     seenLevel: 1,
+    archetype: archetypeFor(a).name,
+    theme: a.theme || "forge",
+    pactSignedAt: new Date().toISOString(),
   };
   save();
 }
 
 // ---------- Calculs de progression ----------
 const doneOn = (d) => (state.log[d] ? Object.keys(state.log[d]) : []);
-const needed = () => Math.max(1, Math.ceil(state.quests.length * VALIDATE_RATIO));
-const dayValidated = (d) => doneOn(d).length >= needed();
+const isoDay = (d) => ((parseYmd(d).getDay() + 6) % 7) + 1; // 1 = lundi … 7 = dimanche
+const questsFor = (d) => state.quests.filter((q) => !q.days || q.days.includes(isoDay(d)));
+const needed = (d = today()) => Math.max(1, Math.ceil(questsFor(d).length * VALIDATE_RATIO));
+const dayValidated = (d) => doneOn(d).length >= needed(d);
 const dayNumber = () => diffDays(state.startDate, today()) + 1;
 
 function totalXp() {
@@ -252,6 +297,47 @@ function statPoints() {
   return pts;
 }
 
+// ---------- Thèmes ----------
+let rainStop = null;
+function applyTheme(t) {
+  const theme = t === "matrix" ? "matrix" : "forge";
+  if (document.documentElement.dataset.theme === theme) return;
+  document.documentElement.dataset.theme = theme;
+  if (rainStop) { rainStop(); rainStop = null; }
+  if (theme === "matrix") rainStop = startRain();
+}
+function startRain() {
+  const c = document.createElement("canvas");
+  c.id = "rain";
+  document.body.prepend(c);
+  const ctx = c.getContext("2d");
+  const chars = "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ΣΔΨ<>/{}";
+  const size = 16;
+  let cols = [], raf, last = 0;
+  const resize = () => {
+    c.width = innerWidth; c.height = innerHeight;
+    cols = Array.from({ length: Math.ceil(c.width / size) }, () => Math.random() * -50);
+  };
+  resize();
+  addEventListener("resize", resize);
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const draw = (t) => {
+    raf = requestAnimationFrame(draw);
+    if (t - last < 55) return;
+    last = t;
+    ctx.fillStyle = "rgba(0,0,0,0.12)";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = size + "px monospace";
+    cols.forEach((y, i) => {
+      ctx.fillStyle = Math.random() > 0.96 ? "#d6ffe0" : "#00c853";
+      ctx.fillText(chars[(Math.random() * chars.length) | 0], i * size, y * size);
+      cols[i] = y * size > c.height && Math.random() > 0.97 ? 0 : y + 1;
+    });
+  };
+  if (still) { draw(0); cancelAnimationFrame(raf); } else raf = requestAnimationFrame(draw);
+  return () => { cancelAnimationFrame(raf); removeEventListener("resize", resize); c.remove(); };
+}
+
 // ---------- Icônes ----------
 const LOGO = `<svg viewBox="0 0 64 64" class="logo" aria-hidden="true">
   <defs><linearGradient id="lg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a36"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs>
@@ -268,13 +354,17 @@ const NAV = {
 
 // ---------- Écrans ----------
 function render() {
+  AXES = axesFor(state ? state.answers : ui.quiz.answers);
+  applyTheme(state ? state.theme : ui.quiz.answers.theme);
   const screens = {
     welcome: viewWelcome, quiz: viewQuiz, analyzing: viewAnalyzing, baseline: viewBaseline,
-    summary: viewSummary, radar: viewRadar, howto: viewHowto, reveal: viewReveal, app: viewApp,
+    summary: viewSummary, archetype: viewArchetype, radar: viewRadar, science: viewScience,
+    howto: viewHowto, reveal: viewReveal, pact: viewPact, app: viewApp,
   };
   $app.innerHTML = screens[ui.screen]();
   $app.scrollTop = 0;
   if (ui.screen === "analyzing") runAnalysis();
+  if (ui.screen === "pact") setupHold();
 }
 
 const embers = () =>
@@ -334,8 +424,8 @@ function viewQuiz() {
       <input type="range" min="${s.min}" max="${s.max}" value="${a[s.id]}" data-action="slide" style="--p:${((a[s.id] - s.min) / (s.max - s.min)) * 100}%">
       <div class="slider-labels"><span>${esc(s.left)}</span><span>${esc(s.right)}</span></div></div>`;
   } else if (s.type === "text") {
-    canContinue = !!(a.name && a.name.trim());
-    body = `<input class="text-in" id="name-in" maxlength="24" autocomplete="off" placeholder="${esc(s.placeholder)}" value="${esc(a.name || "")}" data-action="name">`;
+    canContinue = s.id !== "name" || !!(a.name && a.name.trim());
+    body = `<input class="text-in" id="${s.id === "name" ? "name-in" : "text-in"}" data-field="${s.id}" maxlength="${s.id === "name" ? 24 : 60}" autocomplete="off" placeholder="${esc(s.placeholder)}" value="${esc(a[s.id] || "")}" data-action="name">`;
   }
 
   return `<section class="screen quiz">
@@ -355,24 +445,37 @@ function viewQuiz() {
 function viewAnalyzing() {
   return `<section class="screen analyzing">
     ${embers()}
-    <div class="forge-ring">${LOGO}</div>
-    <div class="sys-tag">[SYSTÈME] FORGE DU PROGRAMME</div>
+    <div class="sys-tag">[SYSTÈME] FORGE</div>
+    <h2 class="big-title">Lecture de<br><em class="grad-text">ton dossier…</em></h2>
+    <p class="sub">Tes réponses deviennent un programme : quelles quêtes, à quelle intensité, et à quoi ressemble chacun de tes 66 jours.</p>
+    <div class="pct" id="pct">0<small>%</small></div>
+    <div class="pct-bar"><div id="pct-bar"></div></div>
     <ul class="analysis" id="analysis">
-      <li>Analyse de tes réponses</li>
-      <li>Calibrage de la difficulté</li>
-      <li>Sélection de tes quêtes</li>
-      <li>Initialisation des attributs</li>
+      <li>Choix de tes quêtes</li>
+      <li>Équilibrage de la difficulté</li>
+      <li>Calcul de ton profil</li>
+      <li>Génération de tes 66 jours</li>
     </ul>
   </section>`;
 }
 
 function runAnalysis() {
   const items = [...document.querySelectorAll("#analysis li")];
-  items.forEach((li, k) => setTimeout(() => li.classList.add("done"), 500 + k * 550));
-  setTimeout(() => {
-    ui.screen = "baseline";
-    render();
-  }, 500 + items.length * 550 + 300);
+  const pct = document.getElementById("pct");
+  const bar = document.getElementById("pct-bar");
+  const DURATION = 3600;
+  const t0 = performance.now();
+  const tick = (t) => {
+    if (!pct.isConnected) return;
+    const p = Math.min(1, (t - t0) / DURATION);
+    const eased = Math.round(100 * (1 - Math.pow(1 - p, 2.2)));
+    pct.firstChild.nodeValue = eased;
+    bar.style.width = eased + "%";
+    items.forEach((li, k) => li.classList.toggle("done", eased >= (k + 1) * 24));
+    if (p < 1) requestAnimationFrame(tick);
+    else setTimeout(() => { ui.screen = "baseline"; render(); }, 450);
+  };
+  requestAnimationFrame(tick);
 }
 
 const goBtn = (to, label = "Continuer") => `<button class="btn primary sticky" data-action="goto" data-v="${to}">${label}</button>`;
@@ -431,7 +534,7 @@ function viewSummary() {
       .map(([when, [t, d]], k) => `<div class="action ${k === 0 ? "hot" : ""}" style="animation-delay:${300 + k * 120}ms">
         <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>`)
       .join("")}</div>
-    ${goBtn("radar")}
+    ${goBtn("archetype")}
   </section>`;
 }
 
@@ -444,8 +547,17 @@ function viewRadar() {
   return `<section class="screen radar-screen">
     <div class="sys-panel"><b>Analyse terminée.</b><span>Profil de ${esc(name)} généré.</span></div>
     <div class="radar-card">
-      <h3>TES 6 ATTRIBUTS</h3>
-      ${radarSvg(sc, weak)}
+      <h3>TA FICHE D'ATTRIBUTS</h3>
+      <p class="radar-help">${ui.radarDay === 66 ? "Pointillés : aujourd'hui. Plein : où ton programme te mène au jour 66." : "Ton profil aujourd'hui."}</p>
+      ${ui.radarDay === 66 ? radarSvg(projectScores(a, sc), weak, sc) : radarSvg(sc, weak)}
+      <div class="seg wide">
+        <button class="${ui.radarDay !== 66 ? "on" : ""}" data-action="radarday" data-v="1">Jour 1</button>
+        <button class="${ui.radarDay === 66 ? "on" : ""}" data-action="radarday" data-v="66">Jour 66</button>
+      </div>
+      <div class="stat-chips" style="grid-template-columns:repeat(${AXES.length > 6 ? 4 : AXES.length},1fr)">${AXES.map((k) => {
+        const v = ui.radarDay === 66 ? projectScores(a, sc)[k] : sc[k];
+        return `<div class="stat-chip"><small>${STATS[k].label.slice(0, 3).toUpperCase()}</small><b style="color:${ui.radarDay === 66 ? "var(--gold)" : "var(--text)"}">${v}</b></div>`;
+      }).join("")}</div>
       <div class="weak-banner" style="--sc:${STATS[weak].color}">
         <span>${STATS[weak].icon}</span>
         <div><small>POINT FAIBLE</small><b>${STATS[weak].label}</b></div>
@@ -454,8 +566,90 @@ function viewRadar() {
     </div>
     <p class="radar-goal">${esc(ins.goal)}</p>
     <div class="trap"><span class="said-tag">🔍 Ce que tu ne vois peut-être pas</span><p>${esc(ins.trap)}</p></div>
+    ${goBtn("science", "Pourquoi ça marche ?")}
+  </section>`;
+}
+
+function viewArchetype() {
+  const ar = archetypeFor(ui.quiz.answers);
+  return `<section class="screen center-screen archetype" style="--ac:${ar.color}">
+    ${embers()}
+    <span class="pill">◆ TON ARCHÉTYPE</span>
+    <div class="arch-icon">${ar.icon}</div>
+    <h2 class="big-title">${ar.name}</h2>
+    <p class="sub">${esc(ar.text)}</p>
+    ${goBtn("radar", "Voir ma fiche d'attributs")}
+  </section>`;
+}
+
+function viewScience() {
+  return `<section class="screen science">
+    <div class="sys-panel"><b>Pourquoi 66 jours ?</b><span>Ce que dit la recherche.</span></div>
+    <div class="curve-card">
+      <svg viewBox="0 0 320 190" class="curve">
+        <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#ff5a36"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs>
+        <line x1="20" y1="170" x2="310" y2="170" class="axis"/>
+        <line x1="20" y1="10" x2="20" y2="170" class="axis"/>
+        <path d="M20 165 C 80 162, 110 150, 150 110 S 230 42, 290 36" class="c-path"/>
+        <line x1="85" y1="160" x2="85" y2="170" class="tick"/><text x="85" y="142" class="c-lbl muted" text-anchor="middle">J21</text>
+        <circle cx="85" cy="158" r="5" class="c-myth"/>
+        <circle cx="262" cy="40" r="7" class="c-dot"/>
+        <text x="262" y="24" class="c-lbl" text-anchor="middle">JOUR 66</text>
+        <text x="300" y="185" class="c-axis" text-anchor="end">jours</text>
+        <text x="26" y="20" class="c-axis">automatisme</text>
+      </svg>
+    </div>
+    <h2 class="sci-title">Une habitude devient automatique selon une courbe, pas à une date magique.</h2>
+    <p class="sub">En 2009, une équipe de l'University College London a suivi 96 volontaires qui adoptaient une nouvelle habitude. Il a fallu en moyenne <b>66 jours</b> pour qu'elle devienne automatique, de 18 à 254 jours selon les personnes et les habitudes.</p>
+    <p class="sub">Les fameux « 21 jours » viennent d'un chirurgien des années 1960 qui observait ses patients : ce n'était pas une étude sur les habitudes.</p>
+    <p class="sub">Bonne nouvelle de la même étude : <b>rater un jour isolé ne change presque rien</b> au résultat. Ce qui compte, c'est de revenir.</p>
+    <p class="source">Source : Lally, van Jaarsveld, Potts &amp; Wardle, « How are habits formed », <i>European Journal of Social Psychology</i>, 2009.</p>
     ${goBtn("howto", "Montre-moi comment ça marche")}
   </section>`;
+}
+
+function viewPact() {
+  const a = ui.quiz.answers;
+  const name = (a.name || "Héros").trim();
+  const end = parseYmd(addDays(today(), CHALLENGE_DAYS - 1)).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  return `<section class="screen center-screen pact">
+    ${embers()}
+    <span class="pill">◆ DERNIÈRE ÉTAPE</span>
+    <h2 class="big-title">Ton pacte.</h2>
+    <div class="pact-paper">
+      <p>Moi, <b>${esc(name)}</b>, je m'engage à mener mes quêtes chaque jour, jusqu'au <b>${end}</b>.</p>
+      <p>Je ne cherche pas la perfection. Si je rate un jour, je ne rate jamais le deuxième.</p>
+      <p>Dans 66 jours, je serai fier/fière de la personne que je suis devenue.</p>
+      <div class="pact-sign" id="sign">${esc(name)}</div>
+    </div>
+    <p class="sub small">Maintiens le bouton pour signer.</p>
+    <button class="btn primary sticky hold" id="hold"><span class="hold-fill"></span><span class="hold-label">Maintenir pour signer</span></button>
+  </section>`;
+}
+
+function setupHold() {
+  const btn = document.getElementById("hold");
+  if (!btn) return;
+  let timer = null;
+  const start = (e) => {
+    e.preventDefault();
+    btn.classList.add("holding");
+    vibrate(15);
+    timer = setTimeout(() => {
+      btn.classList.add("signed");
+      document.getElementById("sign").classList.add("on");
+      btn.querySelector(".hold-label").textContent = "Pacte signé ✓";
+      vibrate([30, 50, 80]);
+      setTimeout(() => actions.launch(), 1100);
+    }, 1500);
+  };
+  const stop = () => {
+    if (btn.classList.contains("signed")) return;
+    clearTimeout(timer);
+    btn.classList.remove("holding");
+  };
+  btn.addEventListener("pointerdown", start);
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, stop));
 }
 
 function viewHowto() {
@@ -472,24 +666,38 @@ function viewHowto() {
       ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}"><span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span><small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
     </div>
     <p class="sub">Tu commences rang <b>E</b>. En 66 jours, les plus réguliers atteignent le rang <b>B</b>.</p>
-    ${goBtn("reveal", "Voir mes quêtes")}
+    ${goBtn("reveal", "Voir ma semaine 1")}
   </section>`;
 }
 
 function viewReveal() {
   const q = buildProgram(ui.quiz.answers);
   const name = (ui.quiz.answers.name || "Héros").trim();
+  const a = ui.quiz.answers;
+  const endIso = addDays(today(), CHALLENGE_DAYS - 1);
+  const fmt = (iso) => parseYmd(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  const enemy = { phone: "Le téléphone", procrast: "La procrastination", sleep: "Le sommeil", doubt: "Le doute", chaos: "Le désordre" }[a.enemy] || "—";
+  const focus = QUIZ.find((x) => x.id === "focus").options.filter((o) => (a.focus || []).includes(o.v)).map((o) => o.label).join(", ") || "—";
   return `<section class="screen reveal">
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
-    <h2>${esc(name)}, voici tes quêtes quotidiennes.</h2>
-    <p class="sub">Valide au moins ${Math.ceil(q.length * VALIDATE_RATIO)} quêtes sur ${q.length} chaque jour pour garder ta série. Tu pourras les modifier dans ton profil.</p>
-    <div class="reveal-rank"><div class="rank-badge" style="--rc:${RANKS[0].color}">${RANKS[0].letter}</div>
-      <div><small>RANG DE DÉPART</small><strong>${RANKS[0].name}</strong></div></div>
+    <h2>${esc(name)}, voici ta semaine 1.</h2>
+    <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR 66</small><b>${fmt(endIso)}</b></div></div>
+    <div class="card recap">
+      <h3>Créé à partir de tes réponses</h3>
+      <div class="recap-row"><span>Tes priorités</span><b>${esc(focus)}</b></div>
+      <div class="recap-row"><span>Ce qui te freine</span><b>${esc(enemy)}</b></div>
+      <div class="recap-row"><span>Ton archétype</span><b>${archetypeFor(a).icon} ${archetypeFor(a).name}</b></div>
+    </div>
     <div class="quest-preview">${q
-      .map((x, k) => `<div class="qp" style="animation-delay:${k * 80}ms;--sc:${STATS[x.stat].color}">
-        <span class="qp-stat">${STATS[x.stat].icon}</span><div><b>${esc(x.title)}</b><small>${esc(x.sub)}</small></div><em>+${x.xp} XP</em></div>`)
+      .map((x, k) => {
+        const days = x.days || [1, 2, 3, 4, 5, 6, 7];
+        return `<div class="qp" style="animation-delay:${k * 80}ms;--sc:${STATS[x.stat].color}">
+        <div><b>${esc(x.title)}</b><small>${days.length === 7 ? "Chaque jour" : days.length + "× par semaine"} · +${x.xp} XP</small></div>
+        <div class="wd">${WEEKDAYS.map((l, i) => `<i class="${days.includes(i + 1) ? "on" : ""}">${l}</i>`).join("")}</div></div>`;
+      })
       .join("")}</div>
-    <button class="btn primary sticky" data-action="launch">Lancer le jour 1</button>
+    <p class="sub small">Valide au moins 70 % des quêtes prévues chaque jour pour garder ta série. Tu pourras tout modifier dans ton profil.</p>
+    ${goBtn("pact", "Signer mon pacte")}
   </section>`;
 }
 
@@ -518,7 +726,7 @@ function viewQuests() {
   const day = dayNumber();
   const done = doneOn(d);
   const L = levelInfo(totalXp());
-  const todo = state.quests.filter((q) => !done.includes(q.id));
+  const todo = questsFor(d).filter((q) => !done.includes(q.id));
   const finished = state.quests.filter((q) => done.includes(q.id));
   const list = ui.filter === "todo" ? todo : finished;
   const validated = dayValidated(d);
@@ -640,6 +848,7 @@ function viewProfile() {
     </section>
     <section class="card">
       <h3>Réglages</h3>
+      <button class="row-btn" data-action="theme">🎨 Interface : ${state.theme === "matrix" ? "Matrice" : "Système"} (changer)</button>
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
       <button class="row-btn" data-action="how">📜 Pourquoi 66 jours ?</button>
       <button class="row-btn danger" data-action="reset">↺ Recommencer l'épreuve</button>
@@ -657,6 +866,19 @@ function modal(html, onClose) {
       el.remove();
       onClose && onClose();
     }
+  });
+  document.body.appendChild(el);
+}
+
+// Confirmation intégrée (les boîtes confirm() natives ne s'affichent pas partout).
+function ask(question, okLabel, onOk) {
+  const el = document.createElement("div");
+  el.className = "modal";
+  el.innerHTML = `<div class="sheet"><div class="sys-tag">[SYSTÈME] CONFIRMATION</div><h2>${esc(question)}</h2>
+    <div class="ask-row"><button class="btn ghost" data-no>Annuler</button><button class="btn primary danger-btn" data-yes>${esc(okLabel)}</button></div></div>`;
+  el.addEventListener("click", (e) => {
+    if (e.target.closest("[data-yes]")) { el.remove(); onOk(); }
+    else if (e.target === el || e.target.closest("[data-no]")) el.remove();
   });
   document.body.appendChild(el);
 }
@@ -740,6 +962,7 @@ const actions = {
     const s = quizSteps()[ui.quiz.step];
     const opt = s.options.find((o) => String(o.v) === el.dataset.v);
     ui.quiz.answers[s.id] = opt.v;
+    if (s.id === "theme") applyTheme(opt.v);
     el.classList.add("on");
     vibrate(10);
     const go = () => setTimeout(nextStep, 220);
@@ -759,10 +982,22 @@ const actions = {
     }
     ui.quiz.answers[s.id] = sel;
     vibrate(10);
-    render();
+    // Mise à jour sur place (pas de re-rendu complet → pas de clignotement).
+    document.querySelectorAll("[data-action=toggle]").forEach((b) => b.classList.toggle("on", sel.includes(b.dataset.v)));
+    const next = document.querySelector("[data-action=next]");
+    if (next) next.disabled = !(sel.length > 0 || s.id === "quit");
   },
   next() {
     nextStep();
+  },
+  theme() {
+    state.theme = state.theme === "matrix" ? "forge" : "matrix";
+    save();
+    render();
+  },
+  radarday(el) {
+    ui.radarDay = Number(el.dataset.v);
+    render();
   },
   goto(el) {
     ui.screen = el.dataset.v;
@@ -816,18 +1051,20 @@ const actions = {
   del(el) {
     if (state.quests.length <= 1) return;
     const q = state.quests.find((x) => x.id === el.dataset.id);
-    if (!confirm(`Supprimer la quête « ${q.title} » ?`)) return;
-    state.quests = state.quests.filter((x) => x.id !== q.id);
-    save();
-    render();
+    ask(`Supprimer la quête « ${q.title} » ?`, "Supprimer", () => {
+      state.quests = state.quests.filter((x) => x.id !== q.id);
+      save();
+      render();
+    });
   },
   reset() {
-    if (!confirm("Recommencer l'épreuve depuis le jour 1 ? Toute ta progression sera effacée.")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    state = null;
-    ui.screen = "welcome";
-    ui.quiz = { step: 0, answers: { confidence: 5, focus: [], equipment: [], quit: [] } };
-    render();
+    ask("Recommencer depuis le jour 1 ? Toute ta progression sera effacée.", "Recommencer", () => {
+      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      state = null;
+      ui.screen = "welcome";
+      ui.quiz = { step: 0, answers: { confidence: 5, focus: [], equipment: [], quit: [] } };
+      render();
+    });
   },
 };
 
@@ -845,13 +1082,13 @@ $app.addEventListener("input", (e) => {
     document.getElementById("sv").textContent = el.value;
     el.style.setProperty("--p", ((el.value - el.min) / (el.max - el.min)) * 100 + "%");
   } else if (el.dataset.action === "name") {
-    ui.quiz.answers.name = el.value;
-    document.querySelector("[data-action=next]").disabled = !el.value.trim();
+    ui.quiz.answers[el.dataset.field] = el.value;
+    if (el.dataset.field === "name") document.querySelector("[data-action=next]").disabled = !el.value.trim();
   }
 });
 
 $app.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.dataset.action === "name" && e.target.value.trim()) nextStep();
+  if (e.key === "Enter" && e.target.dataset.action === "name" && (e.target.value.trim() || e.target.dataset.field !== "name")) nextStep();
 });
 
 $app.addEventListener("submit", (e) => {

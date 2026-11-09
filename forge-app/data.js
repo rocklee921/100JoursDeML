@@ -9,10 +9,13 @@ const STATS = {
   SAV: { label: "Savoir", icon: "📖", color: "#4cc9f0" },
   SOC: { label: "Lien", icon: "🤝", color: "#4ade80" },
   ENE: { label: "Énergie", icon: "🔋", color: "#f472b6" },
+  COU: { label: "Courage", icon: "🦁", color: "#fb923c" },
+  FOI: { label: "Foi", icon: "✨", color: "#fde68a" },
 };
 
 // Ordre des axes du radar (hexagone).
-const AXES = ["FOR", "MEN", "ENE", "SOC", "SAV", "DIS"];
+const BASE_AXES = ["FOR", "MEN", "ENE", "SOC", "SAV", "COU", "DIS"];
+const axesFor = (a) => ((a.focus || []).includes("faith") ? [...BASE_AXES.slice(0, 5), "FOI", ...BASE_AXES.slice(5)] : BASE_AXES);
 
 // Ce qu'on dit quand un axe est le plus faible.
 const AXIS_INSIGHT = {
@@ -21,6 +24,8 @@ const AXIS_INSIGHT = {
   ENE: { goal: "Recharger tes batteries : mieux dormir, mieux manger.", trap: "Le problème n'est pas ta volonté, c'est ta fatigue. Un cerveau qui dort 6 h décide comme un cerveau ivre. On répare la base d'abord." },
   SOC: { goal: "Recréer du lien, sortir de ta bulle.", trap: "Tu attends que les autres fassent le premier pas. Eux aussi. Un seul message par jour suffit à tout débloquer." },
   SAV: { goal: "Nourrir ton cerveau au lieu de le remplir.", trap: "Ton attention est ta ressource la plus précieuse, et ton téléphone la vend. On va la reprendre, page après page." },
+  COU: { goal: "Oser enfin ce que tu repousses depuis des années.", trap: "Tu attends de ne plus avoir peur pour agir. Ça n'arrive jamais : le courage, c'est agir avec la peur. On va l'entraîner comme un muscle, un petit défi à la fois." },
+  FOI: { goal: "Remettre ta foi au centre de tes journées.", trap: "Tu attends d'avoir le temps pour ta spiritualité. Elle se construit dans les petits rendez-vous réguliers, pas dans les grandes résolutions." },
   DIS: { goal: "Devenir quelqu'un qui tient parole, d'abord envers soi.", trap: "Tu crois manquer de motivation. Il te manque juste des actions assez petites pour être impossibles à rater. On commence minuscule." },
 };
 
@@ -43,6 +48,16 @@ const QUIZ = [
     placeholder: "Ton prénom ou pseudo",
   },
   {
+    id: "theme",
+    type: "single",
+    q: "Choisis ton interface.",
+    sub: "Tu pourras la changer à tout moment dans ton profil.",
+    options: [
+      { v: "forge", label: "⚔️ Système — braise et acier", hint: "style manga" },
+      { v: "matrix", label: "🟩 Matrice — pluie de code", hint: "style hacker" },
+    ],
+  },
+  {
     id: "life",
     type: "single",
     q: "Où en es-tu dans ta vie en ce moment ?",
@@ -58,17 +73,44 @@ const QUIZ = [
     id: "focus",
     type: "multi",
     q: "Sur quoi veux-tu progresser ?",
-    sub: "Choisis jusqu'à 3 domaines.",
-    max: 3,
+    sub: "Choisis jusqu'à 4 domaines.",
+    max: 4,
     options: [
-      { v: "body", label: "Corps et énergie" },
-      { v: "mind", label: "Esprit et sérénité" },
-      { v: "work", label: "Travail et productivité" },
-      { v: "discipline", label: "Discipline et routines" },
-      { v: "social", label: "Relations et confiance" },
-      { v: "learn", label: "Apprendre et lire" },
-      { v: "money", label: "Argent et organisation" },
+      { v: "body", label: "💪 Sport et forme physique" },
+      { v: "food", label: "🥗 Alimentation" },
+      { v: "sleep", label: "🌙 Sommeil" },
+      { v: "mind", label: "🧠 Mental et sérénité" },
+      { v: "discipline", label: "⚔️ Discipline et habitudes" },
+      { v: "procrast", label: "⏳ Arrêter de procrastiner" },
+      { v: "work", label: "💼 Carrière et métier" },
+      { v: "learn", label: "🎓 S'éduquer et apprendre" },
+      { v: "culture", label: "🧩 Intelligence et culture" },
+      { v: "social", label: "🤝 Sociabilité et confiance" },
+      { v: "faith", label: "✨ Foi et spiritualité" },
+      { v: "dare", label: "🦁 Oser ce que je n'ai jamais osé" },
+      { v: "money", label: "💰 Argent et organisation" },
     ],
+  },
+  {
+    id: "faith",
+    type: "single",
+    q: "Quelle est ta pratique ?",
+    sub: "Pour te proposer des quêtes qui ont du sens pour toi.",
+    showIf: (a) => (a.focus || []).includes("faith"),
+    options: [
+      { v: "islam", label: "Islam" },
+      { v: "christian", label: "Christianisme" },
+      { v: "jewish", label: "Judaïsme" },
+      { v: "other", label: "Autre / spiritualité personnelle" },
+    ],
+  },
+  {
+    id: "dream",
+    type: "text",
+    q: "Qu'est-ce que tu as toujours voulu faire sans jamais oser ?",
+    sub: "Lancer un projet, parler en public, apprendre la guitare… On en fera une quête.",
+    placeholder: "Ex : lancer ma chaîne YouTube",
+    showIf: (a) => (a.focus || []).includes("dare"),
   },
   {
     id: "mindIssue",
@@ -227,10 +269,10 @@ const CATALOG = [
   // Corps
   { id: "pushups", focus: "body", stat: "FOR", xp: 25, t: (n) => `${n} pompes`, sub: "Réparties comme tu veux", amt: [10, 20, 35, 50] },
   { id: "walk", focus: "body", stat: "FOR", xp: 20, t: (n) => `Marcher ${n} pas`, sub: "Dehors de préférence", amt: ["5 000", "7 000", "9 000", "12 000"] },
-  { id: "run", focus: "body", stat: "FOR", xp: 35, needs: "outdoor", t: (n) => `Courir ${n} km`, sub: "Allure confortable", amt: [2, 3, 5, 7] },
-  { id: "gym", focus: "body", stat: "FOR", xp: 40, needs: "gym", t: () => "Séance de musculation", sub: "45 min minimum", amt: [] },
-  { id: "bike", focus: "body", stat: "FOR", xp: 30, needs: "bike", t: (n) => `${n} min de vélo`, sub: "Trajet ou balade", amt: [15, 25, 40, 60] },
-  { id: "swim", focus: "body", stat: "FOR", xp: 35, needs: "pool", t: (n) => `Nager ${n} min`, sub: "Sans s'arrêter si possible", amt: [15, 20, 30, 45] },
+  { id: "run", days: [1, 3, 5], focus: "body", stat: "FOR", xp: 35, needs: "outdoor", t: (n) => `Courir ${n} km`, sub: "Allure confortable", amt: [2, 3, 5, 7] },
+  { id: "gym", days: [1, 3, 5], focus: "body", stat: "FOR", xp: 40, needs: "gym", t: () => "Séance de musculation", sub: "45 min minimum", amt: [] },
+  { id: "bike", days: [2, 4, 6], focus: "body", stat: "FOR", xp: 30, needs: "bike", t: (n) => `${n} min de vélo`, sub: "Trajet ou balade", amt: [15, 25, 40, 60] },
+  { id: "swim", days: [2, 4, 6], focus: "body", stat: "FOR", xp: 35, needs: "pool", t: (n) => `Nager ${n} min`, sub: "Sans s'arrêter si possible", amt: [15, 20, 30, 45] },
   { id: "stretch", focus: "body", stat: "FOR", xp: 15, t: (n) => `${n} min d'étirements`, sub: "Le soir, au calme", amt: [5, 10, 10, 15] },
   { id: "water", focus: "body", stat: "ENE", xp: 10, t: () => "Boire 2 L d'eau", sub: "Une bouteille sur le bureau", amt: [] },
   // Esprit
@@ -254,6 +296,26 @@ const CATALOG = [
   { id: "read", focus: "learn", stat: "SAV", xp: 25, t: (n) => `Lire ${n} pages`, sub: "Un livre papier ou liseuse", amt: [5, 10, 20, 30] },
   { id: "study", focus: "learn", stat: "SAV", xp: 30, t: (n) => `${n} min d'apprentissage`, sub: "Langue, code, instrument…", amt: [15, 20, 30, 45] },
   { id: "podcast", focus: "learn", stat: "SAV", xp: 15, t: () => "Un podcast ou une conf' instructive", sub: "Pendant un trajet", amt: [] },
+  // Alimentation
+  { id: "veggies", focus: "food", stat: "ENE", xp: 20, t: () => "Légumes à chaque repas", sub: "La moitié de l'assiette", amt: [] },
+  { id: "cook", focus: "food", stat: "ENE", xp: 25, t: () => "Cuisiner un repas maison", sub: "Simple, mais fait par toi", amt: [] },
+  { id: "nosnack", focus: "food", stat: "DIS", xp: 20, t: () => "Pas de grignotage après 20h", sub: "Cuisine fermée", amt: [] },
+  { id: "water2", focus: "food", stat: "ENE", xp: 10, t: () => "Boire 2 L d'eau", sub: "Une bouteille toujours à portée", amt: [] },
+  // Sommeil
+  { id: "bedtime", focus: "sleep", stat: "ENE", xp: 25, t: () => "Au lit avant 23h", sub: "Même le week-end", amt: [] },
+  { id: "noscreen", focus: "sleep", stat: "ENE", xp: 20, t: (n) => `Pas d'écran ${n} min avant de dormir`, sub: "Un livre à la place", amt: [30, 30, 45, 60] },
+  { id: "sunlight", focus: "sleep", stat: "ENE", xp: 15, t: () => "10 min de lumière au réveil", sub: "Ton horloge interne se cale", amt: [] },
+  // Procrastination
+  { id: "eatfrog", focus: "procrast", stat: "DIS", xp: 30, t: () => "La tâche redoutée en premier", sub: "Juste 10 minutes pour lancer", amt: [] },
+  { id: "pomodoro", focus: "procrast", stat: "DIS", xp: 30, t: (n) => `${n} sessions Pomodoro`, sub: "25 min de focus, 5 min de pause", amt: [1, 2, 4, 6] },
+  { id: "2min", focus: "procrast", stat: "DIS", xp: 15, t: () => "Règle des 2 minutes", sub: "Si ça prend moins de 2 min, fais-le maintenant", amt: [] },
+  // Intelligence & culture
+  { id: "logic", focus: "culture", stat: "SAV", xp: 20, t: (n) => `${n} min d'échecs ou de logique`, sub: "Puzzle, sudoku, échecs", amt: [10, 15, 20, 30] },
+  { id: "oeuvre", focus: "culture", stat: "SAV", xp: 20, t: () => "Découvrir une œuvre", sub: "Un film d'auteur, un album, un musée, un documentaire", amt: [] },
+  { id: "teach", focus: "culture", stat: "SAV", xp: 20, t: () => "Expliquer une idée apprise", sub: "À quelqu'un ou par écrit, en 5 phrases", amt: [] },
+  // Oser
+  { id: "fear", focus: "dare", stat: "COU", xp: 35, t: () => "Faire une chose qui te fait un peu peur", sub: "Un appel, une question, un premier pas", amt: [] },
+  { id: "yes", focus: "dare", stat: "COU", xp: 25, t: () => "Dire oui à une nouveauté", sub: "Un lieu, un plat, une activité jamais testés", amt: [] },
   // Argent
   { id: "expenses", focus: "money", stat: "SAV", xp: 15, t: () => "Noter toutes tes dépenses", sub: "Chaque euro compte", amt: [] },
   { id: "nospend", focus: "money", stat: "DIS", xp: 20, t: () => "Aucun achat superflu", sub: "Seulement l'essentiel", amt: [] },
@@ -278,6 +340,26 @@ const SPECIAL = {
   alcohol: { id: "q-alcohol", stat: "DIS", xp: 30, title: "Journée sans alcool", sub: "Eau pétillante en remplacement" },
   porn: { id: "q-porn", stat: "DIS", xp: 30, title: "Journée sans porno", sub: "Bloqueur activé, téléphone hors chambre" },
   games: { id: "q-games", stat: "DIS", xp: 25, title: "Max 1 h de jeux vidéo", sub: "Après les quêtes uniquement" },
+  // Foi
+  islam: [
+    { id: "f-salat", stat: "FOI", xp: 35, title: "Les 5 prières à l'heure", sub: "Une à une, sans les repousser" },
+    { id: "f-quran", stat: "FOI", xp: 25, title: "Lire une page du Coran", sub: "Avec la traduction pour méditer le sens" },
+    { id: "f-dhikr", stat: "FOI", xp: 15, title: "5 min de dhikr", sub: "Après la prière du matin ou du soir" },
+  ],
+  christian: [
+    { id: "f-pray", stat: "FOI", xp: 25, title: "Prière du matin et du soir", sub: "Quelques minutes, sans téléphone" },
+    { id: "f-bible", stat: "FOI", xp: 25, title: "Lire un passage de la Bible", sub: "Un chapitre, et une phrase à retenir" },
+  ],
+  jewish: [
+    { id: "f-tefila", stat: "FOI", xp: 25, title: "Temps de prière", sub: "Selon ta pratique" },
+    { id: "f-torah", stat: "FOI", xp: 25, title: "Étudier un passage de la Torah", sub: "Une idée à garder pour la journée" },
+  ],
+  other: [
+    { id: "f-recueil", stat: "FOI", xp: 20, title: "10 min de recueillement", sub: "Prière, méditation ou silence" },
+    { id: "f-read", stat: "FOI", xp: 20, title: "Lire un texte qui te nourrit", sub: "Spirituel ou philosophique" },
+  ],
+  kindness: { id: "f-kind", stat: "FOI", xp: 20, title: "Un acte de bonté ou de charité", sub: "Discret, sans rien attendre" },
+
   junk: { id: "q-junk", stat: "ENE", xp: 25, title: "Zéro malbouffe", sub: "Ni sucre ajouté, ni fast-food" },
 };
 
@@ -290,3 +372,17 @@ const QUOTES = [
   "Personne ne viendra te sauver. Bonne nouvelle : tu n'en as pas besoin.",
   "Rate une journée, d'accord. Jamais deux de suite.",
 ];
+
+// Types de profil (déterminés à partir des réponses).
+const ARCHETYPES = {
+  PHOENIX: { name: "Le Phénix", icon: "🔥", color: "#ff5a36", text: "Tu sors d'une période difficile. Les Phénix ne repartent pas de zéro : ils repartent de l'expérience. Ta reconstruction commence par des gestes minuscules et réguliers." },
+  FOR: { name: "Le Colosse endormi", icon: "🗿", color: "#ff6b4a", text: "Tu as une force en réserve que tu n'utilises pas. Les Colosses se réveillent par le corps : dès qu'il bouge, tout le reste suit." },
+  MEN: { name: "Le Gardien", icon: "🛡️", color: "#a78bfa", text: "Ton esprit tourne sans arrêt. Les Gardiens apprennent à garder la porte de leurs pensées, à choisir lesquelles entrent." },
+  ENE: { name: "La Braise", icon: "🕯️", color: "#f472b6", text: "Ta flamme est là, mais tu tournes sur la réserve. Les Braises se rallument par le sommeil, l'eau, la lumière. On remet du bois." },
+  SOC: { name: "L'Éclaireur", icon: "🧭", color: "#4ade80", text: "Tu avances souvent seul(e). Les Éclaireurs ouvrent le chemin, puis reviennent chercher les autres. Le lien est ta prochaine conquête." },
+  SAV: { name: "L'Érudit", icon: "📜", color: "#4cc9f0", text: "Ta curiosité est immense, mais ton attention est volée. Les Érudits reprennent le contrôle de ce qui entre dans leur tête." },
+  COU: { name: "Le Rōnin", icon: "🗡️", color: "#fb923c", text: "Tu as des rêves que tu gardes pour plus tard. Les Rōnin n'attendent l'autorisation de personne : ils avancent, un pas audacieux après l'autre." },
+  FOI: { name: "Le Pèlerin", icon: "🌙", color: "#fde68a", text: "Tu sens que ta vie a besoin de plus de sens. Les Pèlerins avancent avec leur foi comme boussole, un rendez-vous à la fois." },
+  DIS: { name: "L'Architecte", icon: "📐", color: "#f4b740", text: "Tu sais ce que tu veux, il manque la structure. Les Architectes ne comptent pas sur la motivation : ils construisent des systèmes." },
+};
+const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
