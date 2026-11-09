@@ -304,7 +304,39 @@ const doneOn = (d) => (state.log[d] ? Object.keys(state.log[d]) : []);
 const isoDay = (d) => ((parseYmd(d).getDay() + 6) % 7) + 1; // 1 = lundi … 7 = dimanche
 const questsFor = (d) => state.quests.filter((q) => !q.days || q.days.includes(isoDay(d)));
 const needed = (d = today()) => Math.max(1, Math.ceil(questsFor(d).length * VALIDATE_RATIO));
-const dayValidated = (d) => doneOn(d).length >= needed(d);
+const dayValidated = (d) => doneOn(d).filter((id) => !id.startsWith("ev")).length >= needed(d);
+const cycleOf = (n = dayNumber()) => Math.floor((n - 1) / CHALLENGE_DAYS) + 1;
+const dayInCycle = (n = dayNumber()) => ((n - 1) % CHALLENGE_DAYS) + 1;
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+// ---------- Épreuves de saison ----------
+function eventAt(d = today()) {
+  const dt = parseYmd(d);
+  const y = dt.getFullYear(), m = dt.getMonth();
+  const ev = EVENTS[m];
+  const start = ymd(new Date(y, m, 1)), end = ymd(new Date(y, m, EVENT_DAYS));
+  const id = `ev${y}${pad(m + 1)}`;
+  return { ...ev, id, start, end, active: dt.getDate() <= EVENT_DAYS,
+    quests: ev.quests.map(([title, sub, stat], k) => ({ id: `${id}-${k}`, title, sub, stat, xp: 60, event: true })) };
+}
+function nextEvent() {
+  const dt = parseYmd(today());
+  return eventAt(ymd(new Date(dt.getFullYear(), dt.getMonth() + 1, 1)));
+}
+function eventProgress(ev) {
+  let full = 0;
+  for (let d = ev.start; d <= ev.end && d <= today(); d = addDays(d, 1))
+    if (ev.quests.every((q) => state.log[d] && state.log[d][q.id])) full++;
+  return full;
+}
+function checkTrophy(ev) {
+  state.trophies = state.trophies || {};
+  if (!state.trophies[ev.id] && eventProgress(ev) >= EVENT_GOAL) {
+    state.trophies[ev.id] = { name: ev.name, ico: ev.ico, year: ev.start.slice(0, 4) };
+    save();
+    setTimeout(() => toast(`${ico("trophy")} Trophée gagné : ${ev.name}`), 600);
+  }
+}
 const dayNumber = () => diffDays(state.startDate, today()) + 1;
 
 function totalXp() {
@@ -604,6 +636,7 @@ function render() {
   if (changed) { $app.scrollTop = 0; window.scrollTo(0, 0); }
   if (ui.screen === "analyzing") runAnalysis();
   setupInk();
+  if (ui.screen === "app" && state && cycleOf() > 1 && (state.systemUnlocked || 1) < cycleOf()) systemUnlock();
   if (ui.screen === "pact") setupPact();
 }
 
@@ -614,9 +647,9 @@ const embers = () =>
 
 function viewWelcome() {
   return `<section class="screen welcome">
-    ${embers()}
+    <div class="hero-scene">${scene({ signs: ["J7", "J30", "J" + CHALLENGE_DAYS] })}${embers()}</div>
     <div class="welcome-top">${LOGO}<div class="brand">SOUL<br>LEVELING</div></div>
-    <div class="welcome-body">
+    <div class="welcome-body frame">
       <span class="pill">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS</span>
       <h1>Monte de niveau.<br>Dans la <em>vraie vie.</em></h1>
       <p class="lead">Des quêtes quotidiennes, de l'XP, des rangs à gravir. Ta vie devient ton terrain d'entraînement.</p>
@@ -788,7 +821,7 @@ function viewRadar() {
   const ins = AXIS_INSIGHT[weak];
   const name = (a.name || "Héros").trim();
   return `<section class="screen radar-screen">
-    <div class="sys-panel"><b>Analyse terminée.</b><span>Profil de ${esc(name)} généré.</span></div>
+    <div class="sys-panel frame"><b>Analyse terminée.</b><span>Profil de ${esc(name)} généré.</span></div>
     <div class="radar-card">
       <h3>TA FICHE D'ATTRIBUTS</h3>
       <p class="radar-help">${ui.radarDay === CHALLENGE_DAYS ? "Pointillés : aujourd'hui. Plein : où ton programme te mène au jour ${CHALLENGE_DAYS}." : "Ton profil aujourd'hui."}</p>
@@ -833,7 +866,7 @@ function viewArchetype() {
 
 function viewScience() {
   return `<section class="screen science">
-    <div class="sys-panel"><b>Pourquoi ${CHALLENGE_DAYS} jours ?</b><span>Ce que dit la recherche.</span></div>
+    <div class="sys-panel frame"><b>Pourquoi ${CHALLENGE_DAYS} jours ?</b><span>Ce que dit la recherche.</span></div>
     <div class="curve-card">
       <svg viewBox="0 0 320 190" class="curve">
         <defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#2563ff"/><stop offset="1" stop-color="#7ef0ff"/></linearGradient></defs>
@@ -915,16 +948,17 @@ function setupHold() {
 
 function viewHowto() {
   return `<section class="screen center-screen howto">
-    ${embers()}
+    <div class="scene-banner">${scene({ signs: ["Sem. 1", "Sem. 4", "J" + CHALLENGE_DAYS] })}${embers()}
+      <div class="banner-emblem">${emblem(RANKS[0], 84)}<i class="up">${ico("rise")}</i>${emblem(RANKS[4], 84)}</div></div>
     <div class="sys-tag">[SYSTÈME] LES RÈGLES</div>
     <h2 class="big-title">Ta vie devient le jeu.</h2>
-    <div class="how-steps">
+    <div class="how-steps frame">
       <div class="how"><span>1</span><div><b>Chaque jour, des quêtes</b><small>Des actions réelles : boire, lire, bouger, dormir. Pas de case à cocher dans le vide.</small></div></div>
       <div class="how"><span>2</span><div><b>Chaque quête paie en XP</b><small>L'XP fait monter ton niveau et tes attributs. Valide 70 % de la journée pour un bonus.</small></div></div>
       <div class="how"><span>3</span><div><b>Ta série est sacrée</b><small>Rate un jour, ça arrive. Jamais deux de suite.</small></div></div>
     </div>
     <div class="rank-path">
-      ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}"><span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span><small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
+      ${RANKS.map((r, k) => `<div class="rp ${k === 0 ? "cur" : ""}">${emblem(r, 46)}<small>${r.name}</small></div>`).join('<i class="rp-line"></i>')}
     </div>
     <p class="sub">Tu commences rang <b>E</b>. En ${CHALLENGE_DAYS} jours, les plus réguliers atteignent le rang <b>A</b>.</p>
     ${goBtn("reveal", "Voir ma semaine 1")}
@@ -940,6 +974,7 @@ function viewReveal() {
   const enemy = { phone: "Le téléphone", procrast: "La procrastination", sleep: "Le sommeil", doubt: "Le doute", chaos: "Le désordre" }[a.enemy] || "—";
   const focus = QUIZ.find((x) => x.id === "focus").options.filter((o) => (a.focus || []).includes(o.v)).map((o) => o.label).join(", ") || "—";
   return `<section class="screen reveal">
+    <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
     <div class="dates"><div><small>AUJOURD'HUI</small><b>${fmt(today())}</b></div><span>▶▶▶</span><div class="end"><small>JOUR ${CHALLENGE_DAYS}</small><b>${fmt(endIso)}</b></div></div>
@@ -978,7 +1013,7 @@ function hud() {
   const r = rankFor(L.lvl);
   return `<div class="hud">
     <span class="chip">${ico("bolt")} ${globalStreak()}</span>
-    <span class="chip" style="--rc:${r.color}"><b class="mini-rank">${r.letter}</b> Niv. ${L.lvl}</span>
+    <span class="chip rank-chip">${emblem(r, 28)} Niv. ${L.lvl}${cycleOf() > 1 ? ` <b class="stars">${"★".repeat(Math.min(5, cycleOf() - 1))}</b>` : ""}</span>
     <span class="chip">✦ ${xp} XP</span>
   </div>`;
 }
@@ -995,19 +1030,20 @@ function viewQuests() {
   const quote = QUOTES[day % QUOTES.length];
   const left = needed() - done.length;
 
-  const status = day > CHALLENGE_DAYS
-    ? "Épreuve accomplie. Tu continues en mode légende."
-    : validated
+  const cyc = cycleOf(day);
+  const status = validated
     ? `Journée validée ! +${DAY_BONUS} XP bonus.`
     : `Encore ${left} quête${left > 1 ? "s" : ""} pour valider la journée.`;
 
   return `${hud()}
     <header class="day-head">
-      <h1>JOUR ${day}<small>/${CHALLENGE_DAYS}</small></h1>
+      ${cyc > 1 ? `<div class="sys-tag">[SYSTÈME] MODE QUOTIDIEN · CYCLE ${ROMAN[cyc] || cyc}</div>` : ""}
+      <h1>JOUR ${dayInCycle(day)}<small>/${CHALLENGE_DAYS}</small></h1>
       <p class="${validated ? "ok" : ""}">${status}</p>
       <div class="xpbar" title="Niveau ${L.lvl}"><div style="width:${(L.cur / L.need) * 100}%"></div></div>
       <div class="xpbar-label"><span>Niv. ${L.lvl}</span><span>${L.cur} / ${L.need} XP</span></div>
     </header>
+    ${eventCard()}
     <div class="seg">
       <button class="${ui.filter === "todo" ? "on" : ""}" data-action="filter" data-v="todo">À faire <i>${todo.length}</i></button>
       <button class="${ui.filter === "done" ? "on" : ""}" data-action="filter" data-v="done">Terminées <i>${finished.length}</i></button>
@@ -1016,6 +1052,26 @@ function viewQuests() {
       ${list.length ? list.map(questCard).join("") : `<div class="empty">${ui.filter === "todo" ? "🏆 Toutes les quêtes du jour sont terminées.<br>Reviens demain, guerrier." : "Aucune quête terminée pour l'instant.<br>La première est la plus dure."}</div>`}
     </div>
     <blockquote>« ${esc(quote)} »</blockquote>`;
+}
+
+function eventCard() {
+  const ev = eventAt();
+  if (!ev.active) {
+    const nx = nextEvent();
+    const inDays = diffDays(today(), nx.start);
+    return `<div class="event-teaser">${ico(nx.ico)}<span>Prochaine épreuve de saison : <b>${nx.name}</b> dans ${inDays} jour${inDays > 1 ? "s" : ""}</span></div>`;
+  }
+  const left = diffDays(today(), ev.end) + 1;
+  const prog = eventProgress(ev);
+  const won = state.trophies && state.trophies[ev.id];
+  return `<section class="event frame">
+    <div class="ev-head"><span class="ev-ico">${ico(ev.ico)}</span>
+      <div><small>ÉPREUVE DE SAISON · POUR TOUS LES JOUEURS</small><b>${ev.name}</b></div>
+      <em>${left} j</em></div>
+    <div class="ev-prog"><div style="width:${Math.min(100, (prog / EVENT_GOAL) * 100)}%"></div></div>
+    <p class="ev-note">${won ? `${ico("trophy")} Trophée remporté !` : `${prog}/${EVENT_GOAL} journées complètes pour gagner le trophée`}</p>
+    <div class="quests">${ev.quests.map(questCard).join("")}</div>
+  </section>`;
 }
 
 function questCard(q) {
@@ -1175,13 +1231,14 @@ function viewPath() {
     if (dayValidated(d)) validatedDays++;
   }
 
+  const offset = (cycleOf(day) - 1) * CHALLENGE_DAYS;
   const cells = Array.from({ length: CHALLENGE_DAYS }, (_, k) => {
-    const d = addDays(state.startDate, k);
-    const n = k + 1;
+    const d = addDays(state.startDate, offset + k);
+    const n = offset + k + 1;
     let cls = "future";
     if (n < day) cls = dayValidated(d) ? "win" : doneOn(d).length ? "partial" : "miss";
     if (n === day) cls = "today " + (dayValidated(d) ? "win" : doneOn(d).length ? "partial" : "");
-    return `<div class="cell ${cls}" title="Jour ${n}">${n}</div>`;
+    return `<div class="cell ${cls}" title="Jour ${n}">${n - offset}</div>`;
   }).join("");
 
   return `${hud()}
@@ -1192,7 +1249,7 @@ function viewPath() {
       <div class="stat-box"><b>${questsDone}</b><small>quêtes</small></div>
     </div>
     <section class="card">
-      <h3>Les ${CHALLENGE_DAYS} jours</h3>
+      <h3>${cycleOf(day) > 1 ? `Cycle ${ROMAN[cycleOf(day)] || cycleOf(day)} · ` : ""}Les ${CHALLENGE_DAYS} jours</h3>
       <div class="grid-days">${cells}</div>
       <div class="legend"><span><i class="win"></i>Validé</span><span><i class="partial"></i>Partiel</span><span><i class="miss"></i>Manqué</span></div>
     </section>
@@ -1201,6 +1258,18 @@ function viewPath() {
       ${Object.entries(STATS)
         .map(([k, s]) => `<div class="attr"><span>${ico(s.ico)} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
         .join("")}
+    </section>
+    ${cycleOf(day) === 1 ? `<section class="card unlock-teaser frame">
+      <h3>Débloqué au jour ${CHALLENGE_DAYS}</h3>
+      <div class="ut-row">${ico("lock")}<div><b>Mode Système</b><small>Tes quêtes deviennent ton quotidien, sans fin. Cycles de ${CHALLENGE_DAYS} jours avec étoiles de prestige.</small></div></div>
+      <div class="ut-row">${ico("crown")}<div><b>Prestige</b><small>Chaque cycle terminé ajoute une étoile à ton emblème.</small></div></div>
+      <p class="ut-left">Encore ${CHALLENGE_DAYS - day + 1} jours.</p>
+    </section>` : ""}
+    <section class="card">
+      <h3>Trophées de saison</h3>
+      ${Object.keys(state.trophies || {}).length
+        ? `<div class="badges">${Object.values(state.trophies).map((t) => `<div class="badge got"><span>${ico(t.ico)}</span><small>${esc(t.name)} ${t.year}</small></div>`).join("")}</div>`
+        : `<p class="sub small">Une épreuve de saison a lieu du 1er au ${EVENT_DAYS} de chaque mois, pour tous les joueurs. Termine ${EVENT_GOAL} journées complètes pour gagner son trophée.</p>`}
     </section>
     <section class="card">
       <h3>Badges</h3>
@@ -1217,7 +1286,7 @@ function viewPath() {
           const cur = rankFor(L.lvl) === r;
           const got = L.lvl >= r.min;
           return `<div class="rung ${cur ? "cur" : ""} ${got ? "got" : "locked"}">
-            <div class="rank-badge sm" style="--rc:${r.color}">${got ? r.letter : "🔒"}</div>
+            ${emblem(r, 52, !got)}
             <div><b>${r.name}</b><small>${cur ? "Rang actuel · " : ""}Niveau ${r.min}+</small></div></div>`;
         })
         .join("")}</div>
@@ -1228,7 +1297,7 @@ function viewProfile() {
   const L = levelInfo(totalXp());
   const r = rankFor(L.lvl);
   return `<div class="profile-head">
-      <div class="avatar" style="--rc:${r.color}">${esc(state.name[0].toUpperCase())}<span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span></div>
+      <div class="avatar" style="--rc:${r.color}">${esc(state.name[0].toUpperCase())}<span class="av-emblem">${emblem(r, 54)}</span></div>
       <h1>${esc(state.name)}</h1>
       <p>${r.name} · Niveau ${L.lvl}${mbtiOf(state.answers) ? ` · ${mbtiOf(state.answers)}` : ""}</p>
     </div>
@@ -1314,6 +1383,25 @@ function floatXp(el, txt) {
   setTimeout(() => f.remove(), 1000);
 }
 
+function systemUnlock() {
+  const c = cycleOf();
+  state.systemUnlocked = c;
+  save();
+  impactFrame();
+  const r = rankFor(levelInfo(totalXp()).lvl);
+  const el = document.createElement("div");
+  el.className = "levelup";
+  el.innerHTML = `<div class="speedlines"></div><div class="lu-inner frame">
+    <div class="sys-tag">[SYSTÈME] ${c === 2 ? "ÉPREUVE ACCOMPLIE" : "CYCLE TERMINÉ"}</div>
+    <div class="lu-title">${c === 2 ? "LE SYSTÈME EST DÉBLOQUÉ" : `CYCLE ${ROMAN[c] || c}`}</div>
+    <div class="lu-emblem">${emblem(r, 120)}</div>
+    <p class="sub">${c === 2 ? `Tu as tenu ${CHALLENGE_DAYS} jours. Tes quêtes deviennent ton quotidien. Nouveau cycle, nouvelle étoile de prestige.` : "Une étoile de prestige de plus. Le Système continue."}</p>
+    <div class="stars big">${"★".repeat(Math.min(5, c - 1))}</div>
+    <small>Touchez pour continuer</small></div>`;
+  el.addEventListener("click", () => el.remove());
+  document.body.appendChild(el);
+}
+
 function checkLevelUp() {
   const L = levelInfo(totalXp());
   if (L.lvl > state.seenLevel) {
@@ -1325,11 +1413,12 @@ function checkLevelUp() {
     const el = document.createElement("div");
     el.className = "levelup";
     impactFrame();
-    el.innerHTML = `<div class="speedlines"></div><span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span><div class="lu-inner">
+    el.innerHTML = `<div class="speedlines"></div><span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span><div class="lu-inner frame">
       <div class="sys-tag">[SYSTÈME] NOTIFICATION</div>
       <div class="lu-title">NIVEAU SUPÉRIEUR</div>
       <div class="lu-lvl">${L.lvl}</div>
-      ${r !== oldRank ? `<div class="lu-rank"><span class="rank-badge" style="--rc:${r.color}">${r.letter}</span>Nouveau rang : <b>${r.name}</b></div>` : ""}
+      <div class="lu-emblem">${emblem(r, 120)}</div>
+      ${r !== oldRank ? `<div class="lu-rank">Nouveau rang : <b>${r.name}</b></div>` : ""}
       <small>Touchez pour continuer</small></div>`;
     el.addEventListener("click", () => el.remove());
     document.body.appendChild(el);
@@ -1354,6 +1443,7 @@ function completeQuest(el, q, photo) {
     render();
     if (!wasValidated && dayValidated(d)) toast(`✦ Journée validée · +${DAY_BONUS} XP`);
     checkLevelUp();
+    if (q.event) checkTrophy(eventAt());
   }, 420);
 }
 
@@ -1534,7 +1624,7 @@ const actions = {
   },
   quest(el) {
     const id = el.dataset.id;
-    const q = state.quests.find((x) => x.id === id);
+    const q = state.quests.find((x) => x.id === id) || eventAt().quests.find((x) => x.id === id);
     const d = today();
     const wasValidated = dayValidated(d);
     state.log[d] = state.log[d] || {};

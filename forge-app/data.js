@@ -687,3 +687,21 @@ const STATUS_QUESTS = {
     { id: "st-help", stat: "SOC", xp: 25, days: [2, 5], t: () => "Rendre service ou faire du bénévolat", sub: "Une association, un voisin, la famille", amt: [] },
   ],
 };
+
+// Épreuves de saison : du 1er au 10 de chaque mois, les mêmes pour tout le monde.
+const EVENT_DAYS = 10;
+const EVENT_GOAL = 7; // jours complets pour remporter le trophée
+const EVENTS = [
+  { name: "Le Grand Reset", ico: "rise", quests: [["Écrire 3 objectifs pour l'année", "Relis-les chaque matin de l'épreuve", "MEN"], ["Ranger un espace entier", "Un tiroir, une étagère, une pièce", "DIS"]] },
+  { name: "Semaine du lien", ico: "people", quests: [["Recontacter quelqu'un de perdu de vue", "Un appel ou un vrai message", "SOC"], ["Un compliment sincère", "À une personne différente chaque jour", "SOC"]] },
+  { name: "Printemps du corps", ico: "body", quests: [["30 min de marche", "Dehors, rythme soutenu", "FOR"], ["50 squats", "En une ou plusieurs séries", "FOR"]] },
+  { name: "Détox écran", ico: "eye", quests: [["Moins de 2 h d'écran loisir", "Vérifie dans Temps d'écran", "DIS"], ["Pas de téléphone au lit", "Il dort dans une autre pièce", "ENE"]] },
+  { name: "Mois du savoir", ico: "book", quests: [["Lire 20 pages", "Un livre, pas un fil d'actualité", "SAV"], ["Apprendre 10 mots d'une langue", "Écris-les à la main", "SAV"]] },
+  { name: "Défi soleil", ico: "light", quests: [["20 min dehors à la lumière", "Le matin de préférence", "ENE"], ["Boire 2 L d'eau", "Une bouteille toujours à portée", "ENE"]] },
+  { name: "Semaine aventure", ico: "compass", quests: [["Découvrir un lieu nouveau", "Une rue, un parc, un quartier", "COU"], ["Faire une chose qui te fait un peu peur", "Petite ou grande, mais vraie", "COU"]] },
+  { name: "Recharge", ico: "sleep", quests: [["Dormir 8 h", "Au lit à heure fixe", "ENE"], ["Une heure sans notifications", "Mode concentration activé", "MEN"]] },
+  { name: "Rentrée de feu", ico: "flame", quests: [["Planifier ta journée la veille", "3 priorités, pas plus", "DIS"], ["90 min de travail profond", "Une seule tâche, téléphone loin", "DIS"]] },
+  { name: "Mental d'acier", ico: "shield", quests: [["Douche froide 30 s", "À la fin de ta douche", "MEN"], ["10 min de méditation", "Assis, attention au souffle", "MEN"]] },
+  { name: "Gratitude", ico: "light", quests: [["Noter 3 gratitudes", "Même les plus petites", "MEN"], ["Remercier quelqu'un", "De vive voix ou par écrit", "SOC"]] },
+  { name: "Bilan du héros", ico: "trophy", quests: [["Écrire une leçon de l'année", "Ce que tu ne veux plus jamais oublier", "MEN"], ["Un acte de générosité", "Du temps, un don, un service", "SOC"]] },
+];
