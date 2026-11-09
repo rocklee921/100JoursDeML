@@ -32,6 +32,10 @@ function load() {
   }
 }
 function save() {
+  if (state && state.log) {
+    const limit = addDays(today(), -14);
+    for (const day in state.log) if (day < limit) for (const id in state.log[day]) delete state.log[day][id].photo;
+  }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {}
@@ -39,6 +43,7 @@ function save() {
 
 // ---------- État ----------
 let state = load();
+if (state) state.quests.forEach((q) => { const c = CATALOG.find((x) => x.id === q.id); if (c && c.proof) q.proof = c.proof; });
 const ui = {
   screen: state ? "app" : "welcome",
   tab: "quests",
@@ -75,9 +80,13 @@ function buildProgram(a) {
   // Au moins une quête qui travaille l'attribut le plus faible.
   const weak = weakestAxis(profileScores(a));
   const equipOk = (c) => !c.needs || (a.equipment || []).includes(c.needs);
+  if (weak === "DIS" && !quests.some((q) => q.id === "bed")) {
+    const c = CATALOG.find((x) => x.id === "bed");
+    add({ id: c.id, proof: c.proof, title: c.t(), sub: c.sub, stat: c.stat, xp: c.xp });
+  }
   if (!quests.some((q) => q.stat === weak)) {
     const c = CATALOG.find((c) => c.stat === weak && equipOk(c));
-    if (c) add({ id: c.id, days: c.days, title: c.t(c.amt.length ? c.amt[i - 1] : null), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+    if (c) add({ id: c.id, days: c.days, proof: c.proof, title: c.t(c.amt.length ? c.amt[i - 1] : null), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
   }
 
   // Remplissage équilibré entre les domaines choisis.
@@ -95,7 +104,7 @@ function buildProgram(a) {
       const c = pool.shift();
       if (!c) continue;
       const n = c.amt.length ? c.amt[i - 1] : null;
-      add({ id: c.id, days: c.days, title: c.t(n), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
+      add({ id: c.id, days: c.days, proof: c.proof, title: c.t(n), sub: c.sub, stat: c.stat, xp: Math.round(c.xp * (0.8 + i * 0.1)) });
       added = true;
     }
     if (!added) break;
@@ -153,6 +162,24 @@ function projectScores(a, sc) {
   return proj;
 }
 
+function mbtiOf(a) {
+  if (!a) return null;
+  if (a.mbtiKnow === "know" && MBTI_TYPES[a.mbti]) return a.mbti;
+  if (a.mbtiKnow !== "test") return null;
+  const votes = {};
+  MBTI_TEST.forEach((_, k) => { if (a["mt" + k]) votes[a["mt" + k]] = (votes[a["mt" + k]] || 0) + 1; });
+  return ["EI", "SN", "TF", "JP"].map(([x, y]) => ((votes[x] || 0) >= (votes[y] || 0) ? x : y)).join("");
+}
+function mbtiCard(a) {
+  const t = mbtiOf(a);
+  if (!t) return "";
+  return `<div class="mbti-card">
+    <div class="mbti-head"><span class="mbti-type">${t}</span><div><small>TA PERSONNALITÉ</small><b>${MBTI_TYPES[t]}</b></div></div>
+    <ul>${[t[0], t[3]].map((l) => `<li>${esc(MBTI_TIPS[l])}</li>`).join("")}</ul>
+    ${a.mbtiKnow === "test" ? `<p class="mbti-note">Résultat indicatif d'un mini-test, pas un diagnostic.</p>` : ""}
+  </div>`;
+}
+
 function archetypeFor(a) {
   if (["sad", "crisis"].includes(a.life)) return ARCHETYPES.PHOENIX;
   return ARCHETYPES[weakestAxis(profileScores(a))];
@@ -170,7 +197,7 @@ function radarSvg(sc, weak, ghost) {
   const shape = AXES.map((k, i) => pt(i, (R * sc[k]) / 100).join(",")).join(" ");
   const labels = AXES.map((k, i) => {
     const [x, y] = pt(i, R + 26);
-    return `<text x="${x}" y="${y}" class="r-label ${k === weak ? "weak" : ""}" text-anchor="middle" dominant-baseline="middle">${STATS[k].icon} ${STATS[k].label}</text>`;
+    return `<text x="${x}" y="${y}" class="r-label ${k === weak ? "weak" : ""}" text-anchor="middle" dominant-baseline="middle">${STATS[k].label}</text>`;
   }).join("");
   const dots = AXES.map((k, i) => {
     const [x, y] = pt(i, (R * sc[k]) / 100);
@@ -237,6 +264,7 @@ function startChallenge() {
     log: {},
     seenLevel: 1,
     archetype: archetypeFor(a).name,
+    ink: { ...inkStore },
     theme: a.theme || "forge",
     pactSignedAt: new Date().toISOString(),
   };
@@ -325,9 +353,124 @@ function metrics() {
     best: bestStreak(),
     quests,
     focus: extra.filter((e) => e.kind === "focus").reduce((n, e) => n + (e.min || 0), 0),
-    journal: Object.keys(state.journal || {}).length,
+    journal: new Set([...Object.keys(state.journal || {}), ...Object.keys(state.ink || {}).filter((k) => k.startsWith("j-")).map((k) => k.slice(2))]).size,
     books: new Set(extra.filter((e) => e.kind.startsWith("book-")).map((e) => e.kind)).size,
   };
+}
+
+// ---------- Icônes ----------
+const ico = (name, cls = "") => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name] || ICONS.target}"/></svg>`;
+const sIco = (k) => ico(STATS[k].ico);
+
+// ---------- Écriture au doigt ----------
+const inkStore = {}; // id → dataURL (copié dans l'état au démarrage)
+function inkPad(id, label, h = 170) {
+  return `<div class="ink" data-ink="${id}" style="--h:${h}px">
+    <canvas aria-label="${esc(label)}"></canvas>
+    <span class="ink-hint">${ico("pen")} ${esc(label)}</span>
+    <div class="ink-bar">
+      <span class="ink-colors">${["var(--text)", "var(--gold)", "#f87171"].map((c, k) => `<button type="button" class="ink-c ${k === 0 ? "on" : ""}" data-ink-color="${c}" style="background:${c}" aria-label="Couleur"></button>`).join("")}</span>
+      <button type="button" class="ink-clear" data-ink-clear>Effacer</button>
+    </div></div>`;
+}
+function inkGet(id) {
+  return inkStore[id] || (state && state.ink && state.ink[id]) || null;
+}
+function inkSet(id, url) {
+  if (url) inkStore[id] = url; else delete inkStore[id];
+  if (state) {
+    state.ink = state.ink || {};
+    if (url) state.ink[id] = url; else delete state.ink[id];
+    save();
+  }
+}
+function setupInk() {
+  document.querySelectorAll(".ink").forEach((box) => {
+    const id = box.dataset.ink;
+    const cv = box.querySelector("canvas");
+    const ctx = cv.getContext("2d");
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = ctx.lineJoin = "round";
+    let color = getComputedStyle(box).getPropertyValue("--text").trim() || "#fff";
+    const prev = inkGet(id);
+    if (prev) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, W, H);
+      img.src = prev;
+      box.classList.add("has");
+    }
+    let drawing = false, last = null;
+    const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure || 0.5 }; };
+    cv.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      cv.setPointerCapture(e.pointerId);
+      drawing = true; last = pos(e);
+      box.classList.add("has");
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(last.x, last.y, 1.4, 0, 7); ctx.fill();
+    });
+    cv.addEventListener("pointermove", (e) => {
+      if (!drawing) return;
+      const p = pos(e);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.6 + p.p * 2.4;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.quadraticCurveTo(last.x, last.y, (last.x + p.x) / 2, (last.y + p.y) / 2);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    });
+    const end = () => {
+      if (!drawing) return;
+      drawing = false;
+      inkSet(id, cv.toDataURL("image/png"));
+      box.dispatchEvent(new CustomEvent("inked", { bubbles: true }));
+    };
+    cv.addEventListener("pointerup", end);
+    cv.addEventListener("pointercancel", end);
+    box.querySelector("[data-ink-clear]").addEventListener("click", () => {
+      ctx.clearRect(0, 0, W, H);
+      box.classList.remove("has");
+      inkSet(id, null);
+      box.dispatchEvent(new CustomEvent("inked", { bubbles: true }));
+    });
+    box.querySelectorAll("[data-ink-color]").forEach((b) => b.addEventListener("click", () => {
+      box.querySelectorAll(".ink-c").forEach((x) => x.classList.toggle("on", x === b));
+      color = b.dataset.inkColor.startsWith("var") ? getComputedStyle(box).getPropertyValue(b.dataset.inkColor.slice(4, -1)).trim() : b.dataset.inkColor;
+    }));
+  });
+}
+
+// ---------- Effets manga ----------
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function mangaWipe() {
+  if (reduced()) return;
+  const w = document.createElement("div");
+  w.className = "wipe";
+  w.innerHTML = "<i></i><i></i><i></i>";
+  document.body.appendChild(w);
+  setTimeout(() => w.remove(), 650);
+}
+function sfx(el) {
+  const [big, jp] = SFX[(Math.random() * SFX.length) | 0];
+  const r = el.getBoundingClientRect();
+  const f = document.createElement("div");
+  f.className = "sfx";
+  f.innerHTML = `<b>${big}</b><small>${jp}</small>`;
+  f.style.left = Math.min(innerWidth - 150, Math.max(10, r.left + r.width / 2 - 70)) + "px";
+  f.style.top = r.top - 10 + "px";
+  f.style.setProperty("--rot", (Math.random() * 16 - 8).toFixed(1) + "deg");
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 900);
+}
+function impactFrame() {
+  if (reduced()) return;
+  document.body.classList.add("impact");
+  setTimeout(() => document.body.classList.remove("impact"), 140);
 }
 
 // ---------- Thèmes ----------
@@ -395,10 +538,15 @@ function render() {
     summary: viewSummary, archetype: viewArchetype, radar: viewRadar, science: viewScience,
     howto: viewHowto, reveal: viewReveal, pact: viewPact, app: viewApp,
   };
+  const key = ui.screen === "app" ? "app:" + ui.tab + ":" + (ui.tool || "") : ui.screen;
+  if (render.last && render.last !== key && ui.screen !== "quiz") mangaWipe();
+  const changed = render.last !== key;
+  render.last = key;
   $app.innerHTML = screens[ui.screen]();
-  $app.scrollTop = 0;
+  if (changed) { $app.scrollTop = 0; window.scrollTo(0, 0); }
   if (ui.screen === "analyzing") runAnalysis();
-  if (ui.screen === "pact") setupHold();
+  setupInk();
+  if (ui.screen === "pact") setupPact();
 }
 
 const embers = () =>
@@ -438,18 +586,18 @@ function viewQuiz() {
     body = `<div class="options">${s.options
       .map(
         (o) => `<button class="opt ${a[s.id] === o.v ? "on" : ""}" data-action="pick" data-v="${esc(o.v)}">
-          <span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</button>`
+          ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</button>`
       )
       .join("")}</div>`;
   } else if (s.type === "multi") {
     const sel = a[s.id] || [];
     canContinue = sel.length > 0 || s.id === "quit";
     body = `<div class="options">${s.options
-      .map((o) => `<button class="opt ${sel.includes(o.v) ? "on" : ""}" data-action="toggle" data-v="${esc(o.v)}"><span>${esc(o.label)}</span><b class="tick">${CHECK}</b></button>`)
+      .map((o) => `<button class="opt ${sel.includes(o.v) ? "on" : ""}" data-action="toggle" data-v="${esc(o.v)}">${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span><b class="tick">${CHECK}</b></button>`)
       .join("")}</div>`;
   } else if (s.type === "choice-grid") {
     showContinue = false;
-    body = `<div class="grid-opts">${s.options
+    body = `<div class="grid-opts" style="grid-template-columns:repeat(${s.cols || 3},1fr)">${s.options
       .map((o) => `<button class="opt center ${a[s.id] === o.v ? "on" : ""}" data-action="pick" data-v="${esc(o.v)}">${esc(o.label)}</button>`)
       .join("")}</div>`;
   } else if (s.type === "slider") {
@@ -552,21 +700,21 @@ function viewSummary() {
     ? `Je me lève vers ${wake} et je sais tenir une routine.`
     : `Je vise un lever à ${wake}, mais tenir dans la durée, c'est dur.`;
   const cards = [
-    ["🎯", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
-    ["⏱️", "Ton rythme", rhythm],
-    ["⚡", "Ton frein", ENEMY_SENTENCE[a.enemy] || ENEMY_SENTENCE.procrast],
+    ["target", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
+    ["timer", "Ton rythme", rhythm],
+    ["bolt", "Ton frein", ENEMY_SENTENCE[a.enemy] || ENEMY_SENTENCE.procrast],
   ];
   return `<section class="screen summary">
     <div class="sys-tag">[SYSTÈME] CE QUE TU M'AS DIT</div>
     <div class="said">${cards
       .map(([i, t, txt, big], k) => `<div class="said-card ${big ? "big" : ""}" style="animation-delay:${k * 120}ms">
-        <span class="said-tag">${i} ${t}</span><p>${esc(txt)}</p></div>`)
+        <span class="said-tag">${ico(i)} ${t}</span><p>${esc(txt)}</p></div>`)
       .join("")}</div>
     <h2 class="heard">Bien reçu.</h2>
     <div class="sys-tag">ACTIONS DU JOUR 1</div>
     <div class="actions">${firstActions(a, weak)
       .map(([when, [t, d]], k) => `<div class="action ${k === 0 ? "hot" : ""}" style="animation-delay:${300 + k * 120}ms">
-        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>`)
+        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>${k === 0 ? inkPad("task", "Écris-le ici avec ton doigt", 150) : ""}`)
       .join("")}</div>
     ${goBtn("archetype")}
   </section>`;
@@ -593,13 +741,13 @@ function viewRadar() {
         return `<div class="stat-chip"><small>${STATS[k].label.slice(0, 3).toUpperCase()}</small><b style="color:${ui.radarDay === CHALLENGE_DAYS ? "var(--gold)" : "var(--text)"}">${v}</b></div>`;
       }).join("")}</div>
       <div class="weak-banner" style="--sc:${STATS[weak].color}">
-        <span>${STATS[weak].icon}</span>
+        <span class="wb-ico">${sIco(weak)}</span>
         <div><small>POINT FAIBLE</small><b>${STATS[weak].label}</b></div>
         <em>On commence ici.</em>
       </div>
     </div>
     <p class="radar-goal">${esc(ins.goal)}</p>
-    <div class="trap"><span class="said-tag">🔍 Ce que tu ne vois peut-être pas</span><p>${esc(ins.trap)}</p></div>
+    <div class="trap"><span class="said-tag">${ico("eye")} Ce que tu ne vois peut-être pas</span><p>${esc(ins.trap)}</p></div>
     ${goBtn("science", "Pourquoi ça marche ?")}
   </section>`;
 }
@@ -609,9 +757,15 @@ function viewArchetype() {
   return `<section class="screen center-screen archetype" style="--ac:${ar.color}">
     ${embers()}
     <span class="pill">◆ TON ARCHÉTYPE</span>
-    <div class="arch-icon">${ar.icon}</div>
+    <div class="arch-emblem"><div class="speedlines"></div>
+      <svg class="arch-runes" viewBox="0 0 200 200"><defs><path id="rc" d="M100 100m-82 0a82 82 0 1 1 164 0a82 82 0 1 1-164 0"/></defs>
+        <circle cx="100" cy="100" r="92"/><circle cx="100" cy="100" r="72"/>
+        <text><textPath href="#rc">ステータス · 覚醒 · SOUL · LEVEL · UP · 覚醒 · ステータス · SYSTEM ·</textPath></text></svg>
+      <div class="arch-hex">${ico(ar.ico)}</div>
+      <span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span></div>
     <h2 class="big-title">${ar.name}</h2>
     <p class="sub">${esc(ar.text)}</p>
+    ${mbtiCard(ui.quiz.answers)}
     ${goBtn("radar", "Voir ma fiche d'attributs")}
   </section>`;
 }
@@ -653,11 +807,24 @@ function viewPact() {
       <p>Moi, <b>${esc(name)}</b>, je m'engage à mener mes quêtes chaque jour, jusqu'au <b>${end}</b>.</p>
       <p>Je ne cherche pas la perfection. Si je rate un jour, je ne rate jamais le deuxième.</p>
       <p>Dans ${CHALLENGE_DAYS} jours, je serai fier/fière de la personne que je suis devenue.</p>
-      <div class="pact-sign" id="sign">${esc(name)}</div>
+      ${inkPad("signature", "Signe ici avec ton doigt", 130)}
     </div>
-    <p class="sub small">Maintiens le bouton pour signer.</p>
-    <button class="btn primary sticky hold" id="hold"><span class="hold-fill"></span><span class="hold-label">Maintenir pour signer</span></button>
+    <button class="btn primary sticky" id="sign-btn" ${inkGet("signature") ? "" : "disabled"}>Sceller mon pacte</button>
   </section>`;
+}
+
+function setupPact() {
+  const btn = document.getElementById("sign-btn");
+  document.querySelector('[data-ink="signature"]').addEventListener("inked", () => { btn.disabled = !inkGet("signature"); });
+  btn.addEventListener("click", () => {
+    if (!inkGet("signature")) return;
+    btn.textContent = "Pacte scellé ✓";
+    btn.classList.add("sealed");
+    document.querySelector(".pact-paper").classList.add("sealed");
+    impactFrame();
+    vibrate([30, 50, 80]);
+    setTimeout(() => actions.launch(), 1200);
+  });
 }
 
 function setupHold() {
@@ -719,7 +886,8 @@ function viewReveal() {
       <h3>Créé à partir de tes réponses</h3>
       <div class="recap-row"><span>Tes priorités</span><b>${esc(focus)}</b></div>
       <div class="recap-row"><span>Ce qui te freine</span><b>${esc(enemy)}</b></div>
-      <div class="recap-row"><span>Ton archétype</span><b>${archetypeFor(a).icon} ${archetypeFor(a).name}</b></div>
+      <div class="recap-row"><span>Ton archétype</span><b>${archetypeFor(a).name}</b></div>
+      ${mbtiOf(a) ? `<div class="recap-row"><span>Ta personnalité</span><b>${mbtiOf(a)} · ${MBTI_TYPES[mbtiOf(a)]}</b></div>` : ""}
     </div>
     <div class="quest-preview">${q
       .map((x, k) => {
@@ -748,7 +916,7 @@ function hud() {
   const L = levelInfo(xp);
   const r = rankFor(L.lvl);
   return `<div class="hud">
-    <span class="chip">⚡ ${globalStreak()}</span>
+    <span class="chip">${ico("bolt")} ${globalStreak()}</span>
     <span class="chip" style="--rc:${r.color}"><b class="mini-rank">${r.letter}</b> Niv. ${L.lvl}</span>
     <span class="chip">✦ ${xp} XP</span>
   </div>`;
@@ -795,21 +963,23 @@ function questCard(q) {
   const st = STATS[q.stat];
   return `<button class="quest ${done ? "done" : ""}" data-action="quest" data-id="${esc(q.id)}" style="--sc:${st.color}">
     <div class="q-main">
-      <div class="q-tags"><span class="tag">⚡ ${s} j</span><span class="tag stat">${st.icon} ${st.label}</span></div>
+      <div class="q-tags"><span class="tag">${ico("bolt")} ${s} j</span><span class="tag stat">${sIco(q.stat)} ${st.label}</span>${q.proof === "photo" ? `<span class="tag">${ico("camera")} Photo</span>` : ""}</div>
       <div class="q-title">${esc(q.title)}</div>
       <div class="q-sub">${esc(q.sub || "")}</div>
     </div>
-    <div class="q-side"><span class="q-xp">+${q.xp} XP</span><span class="q-check">${CHECK}</span></div>
+    <div class="q-side"><span class="q-xp">+${q.xp} XP</span>${done && state.log[today()][q.id].photo
+      ? `<img class="q-photo" src="${state.log[today()][q.id].photo}" alt="Photo de preuve">`
+      : `<span class="q-check">${q.proof === "photo" && !done ? ico("camera") : CHECK}</span>`}</div>
   </button>`;
 }
 
 // ---------- Outils ----------
 const timer = { kind: null, endAt: 0, total: 0, paused: 0, iv: null };
 const TOOLS = [
-  { id: "focus", icon: "⏱️", name: "Focus", sub: "Minuteur de concentration" },
-  { id: "breath", icon: "🌬️", name: "Respiration", sub: "Cohérence guidée, 2 min" },
-  { id: "journal", icon: "📓", name: "Journal", sub: "Une question par jour" },
-  { id: "library", icon: "📚", name: "Bibliothèque", sub: "Idées clés de livres" },
+  { id: "focus", ico: "timer", name: "Focus", sub: "Minuteur de concentration" },
+  { id: "breath", ico: "wind", name: "Respiration", sub: "Cohérence guidée, 2 min" },
+  { id: "journal", ico: "pen", name: "Journal", sub: "Une question par jour" },
+  { id: "library", ico: "books", name: "Bibliothèque", sub: "Idées clés de livres" },
 ];
 
 function viewTools() {
@@ -817,7 +987,7 @@ function viewTools() {
   const m = metrics();
   return `${hud()}
     <h1 class="page-title">Outils</h1>
-    <div class="tools-grid">${TOOLS.map((t) => `<button class="tool" data-action="tool" data-v="${t.id}"><span>${t.icon}</span><b>${t.name}</b><small>${t.sub}</small></button>`).join("")}</div>
+    <div class="tools-grid">${TOOLS.map((t) => `<button class="tool" data-action="tool" data-v="${t.id}"><span>${ico(t.ico)}</span><b>${t.name}</b><small>${t.sub}</small></button>`).join("")}</div>
     <div class="stats-row">
       <div class="stat-box"><b>${m.focus}</b><small>min de focus</small></div>
       <div class="stat-box"><b>${m.journal}</b><small>pages de journal</small></div>
@@ -867,14 +1037,17 @@ function viewJournal() {
   state.journal = state.journal || {};
   const d = today();
   const prompt = JOURNAL_PROMPTS[dayNumber() % JOURNAL_PROMPTS.length];
-  const past = Object.keys(state.journal).filter((k) => k !== d).sort().reverse().slice(0, 10);
+  const inkDays = Object.keys(state.ink || {}).filter((k) => k.startsWith("j-")).map((k) => k.slice(2));
+  const past = [...new Set([...Object.keys(state.journal), ...inkDays])].filter((k) => k !== d).sort().reverse().slice(0, 10);
   const fmt = (iso) => parseYmd(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   return `<div class="tool-view left">
     <div class="sys-tag">[SYSTÈME] JOURNAL · JOUR ${dayNumber()}</div>
     <h2 class="j-prompt">${esc(prompt)}</h2>
-    <textarea id="journal-in" class="journal-in" rows="7" placeholder="Écris librement, personne d'autre ne le lira.">${esc(state.journal[d] || "")}</textarea>
-    <button class="btn primary" data-action="jsave">${state.journal[d] ? "Mettre à jour" : "Enregistrer (+15 XP)"}</button>
-    ${past.length ? `<h3 class="j-past-title">Pages précédentes</h3>${past.map((k) => `<div class="j-entry"><small>${fmt(k)}</small><p>${esc(state.journal[k])}</p></div>`).join("")}` : ""}
+    <div class="seg wide"><button class="${ui.jmode !== "ink" ? "on" : ""}" data-action="jmode" data-v="text">Clavier</button><button class="${ui.jmode === "ink" ? "on" : ""}" data-action="jmode" data-v="ink">${ico("pen")} À la main</button></div>
+    ${ui.jmode === "ink" ? inkPad("j-" + d, "Écris ou dessine avec ton doigt", 300)
+      : `<textarea id="journal-in" class="journal-in" rows="7" placeholder="Écris librement, personne d'autre ne le lira.">${esc(state.journal[d] || "")}</textarea>`}
+    <button class="btn primary" data-action="jsave">${state.journal[d] || inkGet("j-" + d) ? "Mettre à jour" : "Enregistrer (+15 XP)"}</button>
+    ${past.length ? `<h3 class="j-past-title">Pages précédentes</h3>${past.map((k) => `<div class="j-entry"><small>${fmt(k)}</small>${state.journal[k] ? `<p>${esc(state.journal[k])}</p>` : ""}${inkGet("j-" + k) ? `<img class="j-ink" src="${inkGet("j-" + k)}" alt="Page manuscrite">` : ""}</div>`).join("")}` : ""}
   </div>`;
 }
 
@@ -883,7 +1056,7 @@ function viewLibrary() {
   if (ui.book) {
     const b = BOOKS.find((x) => x.id === ui.book);
     return `<div class="tool-view left">
-      <div class="sys-tag">${STATS[b.stat].icon} ${STATS[b.stat].label.toUpperCase()}</div>
+      <div class="sys-tag">${sIco(b.stat)} ${STATS[b.stat].label.toUpperCase()}</div>
       <h2 class="big-title">${esc(b.title)}</h2><p class="sub">${esc(b.author)}</p>
       <ol class="ideas">${b.ideas.map((i) => `<li>${esc(i)}</li>`).join("")}</ol>
       <p class="sub small">Ces idées clés sont résumées avec nos mots. Pour aller plus loin, lis le livre !</p>
@@ -894,7 +1067,7 @@ function viewLibrary() {
     <div class="sys-tag">[SYSTÈME] BIBLIOTHÈQUE</div>
     <h2 class="big-title">3 idées, 3 minutes.</h2>
     <div class="books">${BOOKS.map((b) => `<button class="book ${read.has(b.id) ? "read" : ""}" data-action="book" data-v="${b.id}" style="--sc:${STATS[b.stat].color}">
-      <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].icon + " " + STATS[b.stat].label}</em></button>`).join("")}</div>
+      <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].label}</em></button>`).join("")}</div>
   </div>`;
 }
 
@@ -965,14 +1138,14 @@ function viewPath() {
     <section class="card">
       <h3>Attributs</h3>
       ${Object.entries(STATS)
-        .map(([k, s]) => `<div class="attr"><span>${s.icon} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
+        .map(([k, s]) => `<div class="attr"><span>${ico(s.ico)} ${s.label}</span><div class="attr-bar"><div style="width:${(pts[k] / maxPts) * 100}%;background:${s.color}"></div></div><b>${Math.floor(pts[k] / 10)}</b></div>`)
         .join("")}
     </section>
     <section class="card">
       <h3>Badges</h3>
       <div class="badges">${(() => { const m = metrics(); return BADGES.map((b) => {
         const got = b.test(m);
-        return `<div class="badge ${got ? "got" : ""}"><span>${got ? b.icon : "🔒"}</span><small>${b.label}</small></div>`;
+        return `<div class="badge ${got ? "got" : ""}"><span>${ico(got ? b.ico : "lock")}</span><small>${b.label}</small></div>`;
       }).join(""); })()}</div>
     </section>
     <section class="card">
@@ -996,18 +1169,24 @@ function viewProfile() {
   return `<div class="profile-head">
       <div class="avatar" style="--rc:${r.color}">${esc(state.name[0].toUpperCase())}<span class="rank-badge sm" style="--rc:${r.color}">${r.letter}</span></div>
       <h1>${esc(state.name)}</h1>
-      <p>${r.name} · Niveau ${L.lvl}</p>
+      <p>${r.name} · Niveau ${L.lvl}${mbtiOf(state.answers) ? ` · ${mbtiOf(state.answers)}` : ""}</p>
     </div>
+    <section class="card">
+      <h3>Personnalité MBTI</h3>
+      ${mbtiCard(state.answers) || `<p class="sub small">Pas encore renseignée.</p>`}
+      <label class="mbti-set"><span>${mbtiOf(state.answers) ? "Changer mon type" : "Choisir mon type"}</span>
+        <select id="mbti-set"><option value="">—</option>${Object.keys(MBTI_TYPES).map((t) => `<option value="${t}" ${mbtiOf(state.answers) === t ? "selected" : ""}>${t} · ${MBTI_TYPES[t]}</option>`).join("")}</select></label>
+    </section>
     <section class="card">
       <h3>Mes quêtes quotidiennes</h3>
       <div class="my-quests">${state.quests
-        .map((q) => `<div class="mq"><span>${STATS[q.stat].icon}</span><div><b>${esc(q.title)}</b><small>+${q.xp} XP</small></div>
+        .map((q) => `<div class="mq"><span class="mq-ico" style="color:${STATS[q.stat].color}">${sIco(q.stat)}</span><div><b>${esc(q.title)}</b><small>+${q.xp} XP</small></div>
           <button class="icon-btn danger" data-action="del" data-id="${esc(q.id)}" aria-label="Supprimer">✕</button></div>`)
         .join("")}</div>
       <form class="add-form" data-action="add">
         <input name="title" maxlength="40" placeholder="Nouvelle quête (ex : 10 min de guitare)" required>
         <div class="add-row">
-          <select name="stat">${Object.entries(STATS).map(([k, s]) => `<option value="${k}">${s.icon} ${s.label}</option>`).join("")}</select>
+          <select name="stat">${Object.entries(STATS).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join("")}</select>
           <button class="btn small" type="submit">Ajouter</button>
         </div>
       </form>
@@ -1084,7 +1263,8 @@ function checkLevelUp() {
     vibrate([40, 60, 40, 60, 120]);
     const el = document.createElement("div");
     el.className = "levelup";
-    el.innerHTML = `<div class="lu-inner">
+    impactFrame();
+    el.innerHTML = `<div class="speedlines"></div><span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span><div class="lu-inner">
       <div class="sys-tag">[SYSTÈME] NOTIFICATION</div>
       <div class="lu-title">NIVEAU SUPÉRIEUR</div>
       <div class="lu-lvl">${L.lvl}</div>
@@ -1094,6 +1274,60 @@ function checkLevelUp() {
     document.body.appendChild(el);
   }
 }
+
+// ---------- Validation d'une quête ----------
+function completeQuest(el, q, photo) {
+  const d = today();
+  const wasValidated = dayValidated(d);
+  state.log[d] = state.log[d] || {};
+  state.log[d][q.id] = photo ? { xp: q.xp, stat: q.stat, photo } : { xp: q.xp, stat: q.stat };
+  save();
+  vibrate(25);
+  el = el && el.isConnected ? el : document.querySelector(`.quest[data-id="${q.id}"]`);
+  if (el) {
+    el.classList.add("done", "pop");
+    floatXp(el, `+${q.xp} XP`);
+    sfx(el);
+  }
+  setTimeout(() => {
+    render();
+    if (!wasValidated && dayValidated(d)) toast(`✦ Journée validée · +${DAY_BONUS} XP`);
+    checkLevelUp();
+  }, 420);
+}
+
+function shrinkPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const max = 360, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.65));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(); };
+    img.src = url;
+  });
+}
+
+const photoInput = document.createElement("input");
+Object.assign(photoInput, { type: "file", accept: "image/*", id: "photo-in", hidden: true });
+photoInput.setAttribute("capture", "environment");
+document.body.appendChild(photoInput);
+photoInput.addEventListener("change", async () => {
+  const file = photoInput.files && photoInput.files[0];
+  const q = state && state.quests.find((x) => x.id === ui.photoFor);
+  if (!file || !q) return;
+  try {
+    const photo = await shrinkPhoto(file);
+    completeQuest(null, q, photo);
+  } catch {
+    toast("Impossible de lire cette photo. Réessaie.");
+  }
+});
 
 // ---------- Actions ----------
 function nextStep() {
@@ -1182,15 +1416,21 @@ const actions = {
     stopTimer();
     render();
   },
+  jmode(el) {
+    const ta = document.getElementById("journal-in");
+    if (ta && ta.value.trim()) { state.journal = state.journal || {}; state.journal[today()] = ta.value.trim(); save(); }
+    ui.jmode = el.dataset.v;
+    render();
+  },
   jsave() {
-    const txt = document.getElementById("journal-in").value.trim();
-    if (!txt) return;
     state.journal = state.journal || {};
-    const first = !state.journal[today()];
-    state.journal[today()] = txt;
+    const ta = document.getElementById("journal-in");
+    const txt = ta ? ta.value.trim() : state.journal[today()] || "";
+    const hasInk = !!inkGet("j-" + today());
+    if (!txt && !hasInk) return;
+    if (txt) state.journal[today()] = txt;
     save();
-    if (first) awardExtra("journal", 15, "MEN", 1);
-    else toast("✓ Journal mis à jour");
+    if (!awardExtra("journal", 15, "MEN", 1)) toast("✓ Journal enregistré");
     render();
   },
   book(el) {
@@ -1232,29 +1472,25 @@ const actions = {
     const wasValidated = dayValidated(d);
     state.log[d] = state.log[d] || {};
     if (state.log[d][id]) {
-      delete state.log[d][id];
-      if (!Object.keys(state.log[d]).length) delete state.log[d];
-      vibrate(10);
-      save();
-      render();
+      const undo = () => {
+        delete state.log[d][id];
+        if (!Object.keys(state.log[d]).length) delete state.log[d];
+        vibrate(10);
+        save();
+        render();
+      };
+      if (state.log[d][id].photo) ask("Annuler cette quête et supprimer sa photo ?", "Annuler la quête", undo);
+      else undo();
       return;
     }
-    state.log[d][id] = { xp: q.xp, stat: q.stat };
-    save();
-    vibrate(25);
-    el.classList.add("done", "pop");
-    floatXp(el, `+${q.xp} XP`);
-    setTimeout(() => {
-      render();
-      if (!wasValidated && dayValidated(d)) {
-        const t = document.createElement("div");
-        t.className = "toast";
-        t.innerHTML = `✦ Journée validée · +${DAY_BONUS} XP`;
-        document.body.appendChild(t);
-        setTimeout(() => t.remove(), 2400);
-      }
-      checkLevelUp();
-    }, 420);
+    if (q.proof === "photo") {
+      ui.photoFor = id;
+      const inp = document.getElementById("photo-in");
+      inp.value = "";
+      inp.click();
+      return;
+    }
+    completeQuest(el, q, null);
   },
   del(el) {
     if (state.quests.length <= 1) return;
@@ -1297,6 +1533,14 @@ $app.addEventListener("input", (e) => {
 
 $app.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.dataset.action === "name" && (e.target.value.trim() || e.target.dataset.field !== "name")) nextStep();
+});
+
+$app.addEventListener("change", (e) => {
+  if (e.target.id !== "mbti-set" || !e.target.value) return;
+  state.answers.mbtiKnow = "know";
+  state.answers.mbti = e.target.value;
+  save();
+  render();
 });
 
 $app.addEventListener("submit", (e) => {

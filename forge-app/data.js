@@ -4,14 +4,14 @@
 const CHALLENGE_DAYS = 100;
 
 const STATS = {
-  FOR: { label: "Force", icon: "💪", color: "#ff6b4a" },
-  MEN: { label: "Mental", icon: "🧠", color: "#a78bfa" },
-  DIS: { label: "Discipline", icon: "⚔️", color: "#f4b740" },
-  SAV: { label: "Savoir", icon: "📖", color: "#4cc9f0" },
-  SOC: { label: "Lien", icon: "🤝", color: "#4ade80" },
-  ENE: { label: "Énergie", icon: "🔋", color: "#f472b6" },
-  COU: { label: "Courage", icon: "🦁", color: "#fb923c" },
-  FOI: { label: "Foi", icon: "✨", color: "#fde68a" },
+  FOR: { label: "Force", icon: "💪", ico: "body", color: "#ff6b4a" },
+  MEN: { label: "Mental", icon: "🧠", ico: "mind", color: "#a78bfa" },
+  DIS: { label: "Discipline", icon: "⚔️", ico: "swords", color: "#f4b740" },
+  SAV: { label: "Savoir", icon: "📖", ico: "book", color: "#4cc9f0" },
+  SOC: { label: "Lien", icon: "🤝", ico: "people", color: "#4ade80" },
+  ENE: { label: "Énergie", icon: "🔋", ico: "bolt", color: "#f472b6" },
+  COU: { label: "Courage", icon: "🦁", ico: "flame", color: "#fb923c" },
+  FOI: { label: "Foi", icon: "✨", ico: "light", color: "#fde68a" },
 };
 
 // Ordre des axes du radar (hexagone).
@@ -39,6 +39,67 @@ const RANKS = [
   { min: 40, letter: "S", name: "Légende", color: "#ff5a36" },
 ];
 
+// ---------- Personnalité MBTI ----------
+const MBTI_TEST = [
+  ["EI", "Après une longue semaine, tu te ressources plutôt…", ["E", "En voyant du monde"], ["I", "Seul(e), au calme"]],
+  ["SN", "Tu fais plus confiance…", ["S", "Aux faits et à l'expérience"], ["N", "À ton intuition et aux idées"]],
+  ["TF", "Pour une décision importante, tu écoutes surtout…", ["T", "La logique"], ["F", "Tes valeurs et l'impact sur les autres"]],
+  ["JP", "Ton week-end idéal est…", ["J", "Prévu à l'avance"], ["P", "Improvisé selon l'envie"]],
+  ["EI", "En groupe, tu…", ["E", "Parles facilement, même à des inconnus"], ["I", "Observes avant de te lancer"]],
+  ["SN", "Dans une explication, tu préfères…", ["S", "Des exemples concrets, étape par étape"], ["N", "La vue d'ensemble d'abord"]],
+  ["TF", "Un ami te montre un projet raté. Tu…", ["T", "Lui dis franchement ce qui cloche"], ["F", "Le soutiens d'abord, tu critiques après"]],
+  ["JP", "Face à une échéance, tu…", ["J", "Commences tôt"], ["P", "Fonces au dernier moment"]],
+  ["EI", "Tu réfléchis mieux…", ["E", "En parlant à voix haute"], ["I", "Dans ta tête, avant de parler"]],
+  ["SN", "Tu penses plutôt…", ["S", "Au présent, à ce qui est réel"], ["N", "Au futur, à ce qui pourrait être"]],
+  ["TF", "On te décrit plutôt comme…", ["T", "Juste et direct"], ["F", "Chaleureux et à l'écoute"]],
+  ["JP", "Ta chambre ou ton bureau…", ["J", "Rangés, chaque chose à sa place"], ["P", "Un bazar où toi seul(e) t'y retrouves"]],
+];
+const MBTI_TYPES = {
+  INTJ: "Le Stratège", INTP: "Le Penseur", ENTJ: "Le Chef", ENTP: "L'Inventeur",
+  INFJ: "Le Guide", INFP: "L'Idéaliste", ENFJ: "Le Mentor", ENFP: "L'Inspirateur",
+  ISTJ: "Le Pilier", ISFJ: "Le Protecteur", ESTJ: "L'Organisateur", ESFJ: "L'Hôte",
+  ISTP: "L'Artisan", ISFP: "L'Artiste", ESTP: "Le Fonceur", ESFP: "L'Animateur",
+};
+const MBTI_TIPS = {
+  E: "Tu te recharges avec les autres : fais tes quêtes à plusieurs dès que possible, ou raconte tes victoires à un proche.",
+  I: "Tu te recharges seul(e) : protège un moment calme chaque jour, c'est ton carburant.",
+  S: "Tu aimes le concret : des objectifs chiffrés et une grille bien remplie te motivent.",
+  N: "Tu as besoin de sens : relis chaque semaine pourquoi tu as commencé.",
+  T: "Tu fonctionnes à la logique : suis tes stats et ta courbe d'XP.",
+  F: "Tu fonctionnes aux valeurs : relie chaque quête à quelqu'un ou quelque chose qui compte pour toi.",
+  J: "Tu aimes planifier : donne une heure fixe à chaque quête.",
+  P: "Tu as besoin de liberté : garde les quêtes, mais change leur ordre comme tu veux.",
+};
+const MBTI_STEPS = [
+  {
+    id: "mbtiKnow",
+    type: "single",
+    q: "Connais-tu ta personnalité MBTI ?",
+    sub: "Les 4 lettres comme INTJ ou ENFP. On adapte nos conseils à ta façon de fonctionner.",
+    options: [
+      { v: "know", icon: "check", label: "Oui, je la connais" },
+      { v: "test", icon: "eye", label: "Non, devine-la avec un mini-test", hint: "12 questions" },
+      { v: "skip", icon: "rise", label: "Passer" },
+    ],
+  },
+  {
+    id: "mbti",
+    type: "choice-grid",
+    cols: 4,
+    q: "Quel est ton type ?",
+    showIf: (a) => a.mbtiKnow === "know",
+    options: Object.keys(MBTI_TYPES).map((t) => ({ v: t, label: t })),
+  },
+  ...MBTI_TEST.map(([dim, q, A, B], k) => ({
+    id: "mt" + k,
+    type: "single",
+    q,
+    sub: `Mini-test de personnalité · ${k + 1}/${MBTI_TEST.length}`,
+    showIf: (a) => a.mbtiKnow === "test",
+    options: [{ v: A[0], label: A[1] }, { v: B[0], label: B[1] }],
+  })),
+];
+
 // Questionnaire d'accueil. `showIf` permet d'adapter le parcours aux réponses.
 const QUIZ = [
   {
@@ -54,8 +115,8 @@ const QUIZ = [
     q: "Choisis ton interface.",
     sub: "Tu pourras la changer à tout moment dans ton profil.",
     options: [
-      { v: "forge", label: "⚔️ Système — bleu électrique", hint: "style manga" },
-      { v: "matrix", label: "🟩 Matrice — pluie de code", hint: "style hacker" },
+      { v: "forge", icon: "rise", label: "Système — bleu électrique", hint: "style manga" },
+      { v: "matrix", icon: "terminal", label: "Matrice — pluie de code", hint: "style hacker" },
     ],
   },
   {
@@ -77,19 +138,19 @@ const QUIZ = [
     sub: "Choisis jusqu'à 4 domaines.",
     max: 4,
     options: [
-      { v: "body", label: "💪 Sport et forme physique" },
-      { v: "food", label: "🥗 Alimentation" },
-      { v: "sleep", label: "🌙 Sommeil" },
-      { v: "mind", label: "🧠 Mental et sérénité" },
-      { v: "discipline", label: "⚔️ Discipline et habitudes" },
-      { v: "procrast", label: "⏳ Arrêter de procrastiner" },
-      { v: "work", label: "💼 Carrière et métier" },
-      { v: "learn", label: "🎓 S'éduquer et apprendre" },
-      { v: "culture", label: "🧩 Intelligence et culture" },
-      { v: "social", label: "🤝 Sociabilité et confiance" },
-      { v: "faith", label: "✨ Foi et spiritualité" },
-      { v: "dare", label: "🦁 Oser ce que je n'ai jamais osé" },
-      { v: "money", label: "💰 Argent et organisation" },
+      { v: "body", icon: "body", label: "Sport et forme physique" },
+      { v: "food", icon: "food", label: "Alimentation" },
+      { v: "sleep", icon: "sleep", label: "Sommeil" },
+      { v: "mind", icon: "mind", label: "Mental et sérénité" },
+      { v: "discipline", icon: "swords", label: "Discipline et habitudes" },
+      { v: "procrast", icon: "hourglass", label: "Arrêter de procrastiner" },
+      { v: "work", icon: "work", label: "Carrière et métier" },
+      { v: "learn", icon: "learn", label: "S'éduquer et apprendre" },
+      { v: "culture", icon: "eye", label: "Intelligence et culture" },
+      { v: "social", icon: "people", label: "Sociabilité et confiance" },
+      { v: "faith", icon: "light", label: "Foi et spiritualité" },
+      { v: "dare", icon: "flame", label: "Oser ce que je n'ai jamais osé" },
+      { v: "money", icon: "coin", label: "Argent et organisation" },
     ],
   },
   {
@@ -228,6 +289,7 @@ const QUIZ = [
       { v: "none", label: "Aucune" },
     ],
   },
+  ...MBTI_STEPS,
   {
     id: "wake",
     type: "choice-grid",
@@ -271,7 +333,7 @@ const CATALOG = [
   { id: "pushups", focus: "body", stat: "FOR", xp: 25, t: (n) => `${n} pompes`, sub: "Réparties comme tu veux", amt: [10, 20, 35, 50] },
   { id: "walk", focus: "body", stat: "FOR", xp: 20, t: (n) => `Marcher ${n} pas`, sub: "Dehors de préférence", amt: ["5 000", "7 000", "9 000", "12 000"] },
   { id: "run", days: [1, 3, 5], focus: "body", stat: "FOR", xp: 35, needs: "outdoor", t: (n) => `Courir ${n} km`, sub: "Allure confortable", amt: [2, 3, 5, 7] },
-  { id: "gym", days: [1, 3, 5], focus: "body", stat: "FOR", xp: 40, needs: "gym", t: () => "Séance de musculation", sub: "45 min minimum", amt: [] },
+  { id: "gym", proof: "photo", days: [1, 3, 5], focus: "body", stat: "FOR", xp: 40, needs: "gym", t: () => "Séance de musculation", sub: "45 min minimum", amt: [] },
   { id: "bike", days: [2, 4, 6], focus: "body", stat: "FOR", xp: 30, needs: "bike", t: (n) => `${n} min de vélo`, sub: "Trajet ou balade", amt: [15, 25, 40, 60] },
   { id: "swim", days: [2, 4, 6], focus: "body", stat: "FOR", xp: 35, needs: "pool", t: (n) => `Nager ${n} min`, sub: "Sans s'arrêter si possible", amt: [15, 20, 30, 45] },
   { id: "stretch", focus: "body", stat: "FOR", xp: 15, t: (n) => `${n} min d'étirements`, sub: "Le soir, au calme", amt: [5, 10, 10, 15] },
@@ -286,7 +348,7 @@ const CATALOG = [
   { id: "top3", focus: "work", stat: "DIS", xp: 15, t: () => "Définir tes 3 priorités", sub: "Avant d'ouvrir tes mails", amt: [] },
   { id: "inbox", focus: "work", stat: "DIS", xp: 15, t: () => "Boîte de réception à zéro", sub: "Traiter, archiver, déléguer", amt: [] },
   // Discipline
-  { id: "bed", focus: "discipline", stat: "DIS", xp: 10, t: () => "Faire ton lit", sub: "Première victoire du jour", amt: [] },
+  { id: "bed", proof: "photo", focus: "discipline", stat: "DIS", xp: 15, t: () => "Faire ton lit", sub: "Prends-le en photo pour valider", amt: [] },
   { id: "coldshower", focus: "discipline", stat: "DIS", xp: 25, t: (n) => `Douche froide ${n} s`, sub: "À la fin de ta douche", amt: [15, 30, 60, 90] },
   { id: "plan", focus: "discipline", stat: "DIS", xp: 15, t: () => "Préparer demain ce soir", sub: "Tenue, sac, planning", amt: [] },
   // Social
@@ -298,8 +360,8 @@ const CATALOG = [
   { id: "study", focus: "learn", stat: "SAV", xp: 30, t: (n) => `${n} min d'apprentissage`, sub: "Langue, code, instrument…", amt: [15, 20, 30, 45] },
   { id: "podcast", focus: "learn", stat: "SAV", xp: 15, t: () => "Un podcast ou une conf' instructive", sub: "Pendant un trajet", amt: [] },
   // Alimentation
-  { id: "veggies", focus: "food", stat: "ENE", xp: 20, t: () => "Légumes à chaque repas", sub: "La moitié de l'assiette", amt: [] },
-  { id: "cook", focus: "food", stat: "ENE", xp: 25, t: () => "Cuisiner un repas maison", sub: "Simple, mais fait par toi", amt: [] },
+  { id: "veggies", proof: "photo", focus: "food", stat: "ENE", xp: 20, t: () => "Légumes à chaque repas", sub: "La moitié de l'assiette", amt: [] },
+  { id: "cook", proof: "photo", focus: "food", stat: "ENE", xp: 25, t: () => "Cuisiner un repas maison", sub: "Simple, mais fait par toi", amt: [] },
   { id: "nosnack", focus: "food", stat: "DIS", xp: 20, t: () => "Pas de grignotage après 20h", sub: "Cuisine fermée", amt: [] },
   { id: "water2", focus: "food", stat: "ENE", xp: 10, t: () => "Boire 2 L d'eau", sub: "Une bouteille toujours à portée", amt: [] },
   // Sommeil
@@ -320,7 +382,7 @@ const CATALOG = [
   // Argent
   { id: "expenses", focus: "money", stat: "SAV", xp: 15, t: () => "Noter toutes tes dépenses", sub: "Chaque euro compte", amt: [] },
   { id: "nospend", focus: "money", stat: "DIS", xp: 20, t: () => "Aucun achat superflu", sub: "Seulement l'essentiel", amt: [] },
-  { id: "tidy", focus: "money", stat: "DIS", xp: 15, t: (n) => `Ranger ${n} min`, sub: "Un tiroir, un dossier, une pièce", amt: [10, 10, 15, 20] },
+  { id: "tidy", proof: "photo", focus: "money", stat: "DIS", xp: 15, t: (n) => `Ranger ${n} min`, sub: "Un tiroir, un dossier, une pièce", amt: [10, 10, 15, 20] },
 ];
 
 // Quêtes liées aux réponses spécifiques.
@@ -376,15 +438,15 @@ const QUOTES = [
 
 // Types de profil (déterminés à partir des réponses).
 const ARCHETYPES = {
-  PHOENIX: { name: "Le Phénix", icon: "🔥", color: "#ff5a36", text: "Tu sors d'une période difficile. Les Phénix ne repartent pas de zéro : ils repartent de l'expérience. Ta reconstruction commence par des gestes minuscules et réguliers." },
-  FOR: { name: "Le Colosse endormi", icon: "🗿", color: "#ff6b4a", text: "Tu as une force en réserve que tu n'utilises pas. Les Colosses se réveillent par le corps : dès qu'il bouge, tout le reste suit." },
-  MEN: { name: "Le Gardien", icon: "🛡️", color: "#a78bfa", text: "Ton esprit tourne sans arrêt. Les Gardiens apprennent à garder la porte de leurs pensées, à choisir lesquelles entrent." },
-  ENE: { name: "La Flamme", icon: "🕯️", color: "#f472b6", text: "Ta flamme est là, mais tu tournes sur la réserve. Les Flammes se rallument par le sommeil, l'eau, la lumière. On remet du bois." },
-  SOC: { name: "L'Éclaireur", icon: "🧭", color: "#4ade80", text: "Tu avances souvent seul(e). Les Éclaireurs ouvrent le chemin, puis reviennent chercher les autres. Le lien est ta prochaine conquête." },
-  SAV: { name: "L'Érudit", icon: "📜", color: "#4cc9f0", text: "Ta curiosité est immense, mais ton attention est volée. Les Érudits reprennent le contrôle de ce qui entre dans leur tête." },
-  COU: { name: "Le Rōnin", icon: "🗡️", color: "#fb923c", text: "Tu as des rêves que tu gardes pour plus tard. Les Rōnin n'attendent l'autorisation de personne : ils avancent, un pas audacieux après l'autre." },
-  FOI: { name: "Le Pèlerin", icon: "🌙", color: "#fde68a", text: "Tu sens que ta vie a besoin de plus de sens. Les Pèlerins avancent avec leur foi comme boussole, un rendez-vous à la fois." },
-  DIS: { name: "L'Architecte", icon: "📐", color: "#f4b740", text: "Tu sais ce que tu veux, il manque la structure. Les Architectes ne comptent pas sur la motivation : ils construisent des systèmes." },
+  PHOENIX: { name: "Le Phénix", icon: "🔥", ico: "phoenix", color: "#ff5a36", text: "Tu sors d'une période difficile. Les Phénix ne repartent pas de zéro : ils repartent de l'expérience. Ta reconstruction commence par des gestes minuscules et réguliers." },
+  FOR: { name: "Le Colosse endormi", icon: "🗿", ico: "stone", color: "#ff6b4a", text: "Tu as une force en réserve que tu n'utilises pas. Les Colosses se réveillent par le corps : dès qu'il bouge, tout le reste suit." },
+  MEN: { name: "Le Gardien", icon: "🛡️", ico: "shield", color: "#a78bfa", text: "Ton esprit tourne sans arrêt. Les Gardiens apprennent à garder la porte de leurs pensées, à choisir lesquelles entrent." },
+  ENE: { name: "La Flamme", icon: "🕯️", ico: "flame", color: "#f472b6", text: "Ta flamme est là, mais tu tournes sur la réserve. Les Flammes se rallument par le sommeil, l'eau, la lumière. On remet du bois." },
+  SOC: { name: "L'Éclaireur", icon: "🧭", ico: "compass", color: "#4ade80", text: "Tu avances souvent seul(e). Les Éclaireurs ouvrent le chemin, puis reviennent chercher les autres. Le lien est ta prochaine conquête." },
+  SAV: { name: "L'Érudit", icon: "📜", ico: "book", color: "#4cc9f0", text: "Ta curiosité est immense, mais ton attention est volée. Les Érudits reprennent le contrôle de ce qui entre dans leur tête." },
+  COU: { name: "Le Rōnin", icon: "🗡️", ico: "blade", color: "#fb923c", text: "Tu as des rêves que tu gardes pour plus tard. Les Rōnin n'attendent l'autorisation de personne : ils avancent, un pas audacieux après l'autre." },
+  FOI: { name: "Le Pèlerin", icon: "🌙", ico: "light", color: "#fde68a", text: "Tu sens que ta vie a besoin de plus de sens. Les Pèlerins avancent avec leur foi comme boussole, un rendez-vous à la fois." },
+  DIS: { name: "L'Architecte", icon: "📐", ico: "target", color: "#f4b740", text: "Tu sais ce que tu veux, il manque la structure. Les Architectes ne comptent pas sur la motivation : ils construisent des systèmes." },
 };
 const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
 
@@ -434,18 +496,18 @@ const BOOKS = [
 
 // Badges débloquables.
 const BADGES = [
-  { id: "s3", icon: "🔥", label: "3 jours", test: (m) => m.best >= 3 },
-  { id: "s7", icon: "🔥", label: "7 jours", test: (m) => m.best >= 7 },
-  { id: "s14", icon: "⚔️", label: "14 jours", test: (m) => m.best >= 14 },
-  { id: "s30", icon: "🛡️", label: "30 jours", test: (m) => m.best >= 30 },
-  { id: "s50", icon: "👑", label: "50 jours", test: (m) => m.best >= 50 },
-  { id: "s100", icon: "🏆", label: "100 jours", test: (m) => m.best >= 100 },
-  { id: "q50", icon: "✅", label: "50 quêtes", test: (m) => m.quests >= 50 },
-  { id: "q250", icon: "💎", label: "250 quêtes", test: (m) => m.quests >= 250 },
-  { id: "f60", icon: "⏱️", label: "1 h de focus", test: (m) => m.focus >= 60 },
-  { id: "f600", icon: "🧘", label: "10 h de focus", test: (m) => m.focus >= 600 },
-  { id: "j7", icon: "📓", label: "7 journaux", test: (m) => m.journal >= 7 },
-  { id: "b4", icon: "📚", label: "4 livres", test: (m) => m.books >= 4 },
+  { id: "s3", icon: "🔥", ico: "flame", label: "3 jours", test: (m) => m.best >= 3 },
+  { id: "s7", icon: "🔥", ico: "flame", label: "7 jours", test: (m) => m.best >= 7 },
+  { id: "s14", icon: "⚔️", ico: "swords", label: "14 jours", test: (m) => m.best >= 14 },
+  { id: "s30", icon: "🛡️", ico: "shield", label: "30 jours", test: (m) => m.best >= 30 },
+  { id: "s50", icon: "👑", ico: "crown", label: "50 jours", test: (m) => m.best >= 50 },
+  { id: "s100", icon: "🏆", ico: "trophy", label: "100 jours", test: (m) => m.best >= 100 },
+  { id: "q50", icon: "✅", ico: "check", label: "50 quêtes", test: (m) => m.quests >= 50 },
+  { id: "q250", icon: "💎", ico: "gem", label: "250 quêtes", test: (m) => m.quests >= 250 },
+  { id: "f60", icon: "⏱️", ico: "timer", label: "1 h de focus", test: (m) => m.focus >= 60 },
+  { id: "f600", icon: "🧘", ico: "wind", label: "10 h de focus", test: (m) => m.focus >= 600 },
+  { id: "j7", icon: "📓", ico: "pen", label: "7 journaux", test: (m) => m.journal >= 7 },
+  { id: "b4", icon: "📚", ico: "books", label: "4 livres", test: (m) => m.books >= 4 },
 ];
 
 const JOURNAL_PROMPTS = [
@@ -455,3 +517,43 @@ const JOURNAL_PROMPTS = [
   "Pour quoi es-tu reconnaissant(e) aujourd'hui ?",
   "Quelle petite victoire veux-tu remporter demain ?",
 ];
+
+// Icônes dessinées (traits SVG 24×24) qui remplacent les emojis.
+const ICONS = {
+  body: "M6 7v10M18 7v10M3 9.5v5M21 9.5v5M6 12h12",
+  food: "M5 19c0-8 6-14 14-14 0 8-6 14-14 14zM5 19l8-8",
+  sleep: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z",
+  mind: "M12 3a6.5 6.5 0 0 0-4 11.6V18h8v-3.4A6.5 6.5 0 0 0 12 3zM9.5 21h5M10 9.5c1.2-1.2 2.8-1.2 4 0",
+  swords: "M3 3l10 10M21 3L11 13M7.5 14.5l-4 4M16.5 14.5l4 4M5 12l7 7M19 12l-7 7",
+  hourglass: "M6 3h12M6 21h12M7 3v2a5 5 0 0 0 10 0V3M7 21v-2a5 5 0 0 1 10 0v2",
+  work: "M3 8h18v11H3zM8 8V5h8v3M3 13h18",
+  learn: "M2 9l10-5 10 5-10 5zM6 11v5c3 2 9 2 12 0v-5",
+  eye: "M2.5 12c4-7.5 15-7.5 19 0-4 7.5-15 7.5-19 0zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  people: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c0-3 3-5 6-5s6 2 6 5M16.5 11a2.5 2.5 0 1 0 0-5M17 15c2.2 0 4 1.6 4 4.5",
+  light: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18",
+  flame: "M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3-1-3 0-6 1-8z",
+  coin: "M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM14.8 9.3c-.4-1-1.5-1.6-2.8-1.6-1.6 0-2.8.8-2.8 2s1.2 1.7 2.8 2.1 2.8.9 2.8 2.1-1.2 2-2.8 2c-1.4 0-2.5-.6-2.9-1.7M12 6v1.7M12 16.3V18",
+  bolt: "M13 2L4 14h7l-1 8 9-12h-7z",
+  book: "M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1zM12 6v14",
+  timer: "M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l3 2M9 2h6",
+  wind: "M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8",
+  pen: "M4 20l4-1 11-11-3-3L5 16zM14 6l3 3",
+  books: "M4 4h4v16H4zM10 4h4v16h-4zM15.5 5.2l3-.9 4 15-3 .9z",
+  shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+  crown: "M3 19h18M4 16L3 7l5 4 4-7 4 7 5-4-1 9z",
+  trophy: "M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 21h8",
+  check: "M5 12.5l5 5 9-10",
+  gem: "M6 4h12l4 5-10 12L2 9zM2 9h20M9.5 4L12 21l2.5-17",
+  lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3",
+  camera: "M4 8h3l2-3h6l2 3h3v11H4zM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 12h.01",
+  compass: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z",
+  blade: "M20 4L9 15M16 4h4v4M7 13l4 4M4 20l3.5-3.5",
+  terminal: "M3 5h18v14H3zM7 9l3 3-3 3M12 15h5",
+  rise: "M6 13l6-6 6 6M6 19l6-6 6 6",
+  stone: "M7 4h10l3 6-3 10H7L4 10zM4 10h16M10 4l-1 6 3 10 3-10-1-6",
+  phoenix: "M12 21c-1-4-6-5-6-10 2 2 4 2 5 1-2-3-1-6 1-9 2 3 3 6 1 9 1 1 3 1 5-1 0 5-5 6-6 10z",
+};
+
+// Onomatopées manga affichées quand une quête est validée.
+const SFX = [["BAM!", "バン"], ["DON!", "ドン"], ["ZAN!", "ザン"], ["SHING!", "シャキーン"], ["GO!", "ゴゴゴ"], ["POW!", "ドカッ"]];
