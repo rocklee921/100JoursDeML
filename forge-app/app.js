@@ -725,14 +725,16 @@ function viewWelcome() {
 
 // Case de manga en tête d'écran : image, trame, lignes de vitesse, encart narratif.
 const PANELS = [
-  { img: "hero", pos: "50% 18%", text: "Le Système t'a choisi." },
-  { img: "welcome-scene", pos: "50% 35%", text: "Chaque rang se gagne." },
-  { img: "hero-soul", pos: "60% 10%", text: "Ton âme peut grandir." },
-  { img: "welcome-scene", pos: "50% 72%", text: "Le chemin commence ici." },
+  { img: "art/system", pos: "50% 30%", text: "Le Système t'a choisi." },
+  { img: "art/training", pos: "50% 40%", text: "Chaque rang se gagne." },
+  { img: "art/study", pos: "60% 35%", text: "Ton esprit est une arme." },
+  { img: "art/rest", pos: "55% 45%", text: "La force naît du calme." },
+  { img: "art/friends", pos: "50% 45%", text: "Tu n'avances pas seul." },
+  { img: "art/summit", pos: "40% 35%", text: "Le sommet t'attend." },
 ];
 function mangaPanel(k, label) {
   const p = PANELS[k % PANELS.length];
-  return `<figure class="mpanel ${p.img === "welcome-scene" ? "color" : ""} ${k % 2 ? "tilt-r" : "tilt-l"}">
+  return `<figure class="mpanel ${p.img.startsWith("art/") ? "art" : p.img === "welcome-scene" ? "color" : ""} ${k % 2 ? "tilt-r" : "tilt-l"}">
     <img src="assets/${p.img}.webp" alt="" style="object-position:${p.pos}">
     <div class="mp-lines"></div>
     <figcaption>${esc(label || p.text)}</figcaption>
@@ -936,7 +938,7 @@ function viewArchetype() {
     ${embers()}
     <span class="pill">◆ TON ARCHÉTYPE</span>
     <figure class="mpanel arch-panel tilt-l">
-      <img src="assets/${ar === ARCHETYPES.PHOENIX || ar === ARCHETYPES.FOI ? "hero-soul" : "hero"}.webp" alt="" style="object-position:55% 12%">
+      <img src="assets/art/awakening.webp" alt="" style="object-position:50% 30%">
       <div class="mp-lines"></div>
       <span class="arch-badge" style="--ac:${ar.color}">${ico(ar.ico)}</span>
       <span class="gogo l">ゴ<br>ゴ<br>ゴ</span>
@@ -992,10 +994,9 @@ function viewPact() {
       </div>
     </div>
     <div class="pact-steps">
-      <button class="blade" id="blade" type="button" aria-label="Piquer ton doigt">
-        <svg viewBox="0 0 64 64" class="finger"><path d="M22 62V30a10 10 0 0 1 20 0v32" class="f-skin"/><path d="M26 30a6 6 0 0 1 12 0" class="f-nail"/></svg>
+      <button class="blade pact-art" id="blade" type="button" aria-label="Piquer ton doigt">
+        <img src="assets/art/pact.webp" alt="Une goutte de sang au bout du doigt">
         <span class="drop" id="drop"></span>
-        <svg viewBox="0 0 64 64" class="knife"><path d="M8 56 L44 20 L54 10 L50 24 L14 60z" class="k-blade"/><path d="M4 60l6-6 4 4-6 6z" class="k-hilt"/></svg>
       </button>
       <p class="sub small" id="pact-step">1. Touche la lame pour piquer ton doigt.</p>
     </div>
@@ -1290,6 +1291,7 @@ function viewGuild() {
   if (!cloud.user) {
     const up = ui.authMode !== "login";
     return `${hud()}<h1 class="page-title">Guilde</h1>
+      <figure class="mpanel art tilt-r"><img src="assets/art/friends.webp" alt="" style="object-position:50% 45%"><div class="mp-lines"></div><figcaption>Rejoins la Guilde.</figcaption></figure>
       <p class="sub">Crée ton compte pour ajouter des amis, apparaître dans les classements et retrouver ta progression sur un autre téléphone.</p>
       <div class="seg wide"><button class="${up ? "on" : ""}" data-action="authmode" data-v="signup">Créer un compte</button><button class="${up ? "" : "on"}" data-action="authmode" data-v="login">Se connecter</button></div>
       <form class="auth frame" id="auth-form">
@@ -1558,7 +1560,7 @@ function viewPathTool() {
   return `<div class="tool-view left path-${cur}">
     <div class="sys-tag">[SYSTÈME] TA VOIE</div>
     <div class="seg wide">${Object.entries(PATHS).map(([k, p]) => `<button class="${cur === k ? "on" : ""}" data-action="setpath" data-v="${k}">${p.name.replace("Voie de l'", "").replace("Voie de la ", "")}</button>`).join("")}</div>
-    <figure class="mpanel path-panel tilt-l"><img src="assets/${cur === "shadow" ? "hero" : "hero-soul"}.webp" alt="" style="object-position:55% 15%"><div class="mp-lines"></div>
+    <figure class="mpanel path-panel tilt-l"><img src="assets/art/${cur === "shadow" ? "awakening" : "rest"}.webp" alt="" style="object-position:50% 35%"><div class="mp-lines"></div>
       <figcaption>${esc(P.name)}</figcaption></figure>
     <p class="sub">${esc(P.motto)}${recommendedPath(a) ? ` Pour ton type ${t}, le Système conseille la ${PATHS[recommendedPath(a)].name}.` : ""}</p>
     ${tr ? `<section class="card"><h3>Ton type ${t}</h3><div class="sw-row"><div><small>FORCES À EXPLOITER</small>${tr[0].map((x) => `<span class="pill-s up">${esc(x)}</span>`).join("")}</div>
@@ -1811,7 +1813,7 @@ function systemUnlock() {
   el.innerHTML = `<div class="speedlines"></div><div class="lu-inner frame">
     <div class="sys-tag">[SYSTÈME] ${c === 2 ? "ÉPREUVE ACCOMPLIE" : "CYCLE TERMINÉ"}</div>
     <div class="lu-title">${c === 2 ? "LE SYSTÈME EST DÉBLOQUÉ" : `CYCLE ${ROMAN[c] || c}`}</div>
-    <img class="unlock-hero" src="assets/emblem-hero.webp" alt="" aria-hidden="true">
+    <img class="unlock-hero art" src="assets/art/summit.webp" alt="" aria-hidden="true">
     <p class="sub">${c === 2 ? `Tu as tenu ${CHALLENGE_DAYS} jours. Tes quêtes deviennent ton quotidien. Nouveau cycle, nouvelle étoile de prestige.` : "Une étoile de prestige de plus. Le Système continue."}</p>
     <div class="stars big">${"★".repeat(Math.min(5, c - 1))}</div>
     <small>Touchez pour continuer</small></div>`;
