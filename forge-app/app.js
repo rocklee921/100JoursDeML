@@ -1335,11 +1335,16 @@ const TOOLS = [
   { id: "focus", ico: "timer", name: "Focus", sub: "Minuteur de concentration" },
   { id: "breath", ico: "wind", name: "Respiration", sub: "Cohérence guidée, 2 min" },
   { id: "journal", ico: "pen", name: "Journal", sub: "Une question par jour" },
-  { id: "library", ico: "books", name: "Bibliothèque", sub: "Idées clés de livres" },
+  { id: "library", ico: "books", name: "Bibliothèque", sub: "Livres, films, séries" },
+  { id: "sport", ico: "body", name: "Sport", sub: "Tes séances par sport" },
+  { id: "nutrition", ico: "food", name: "Nutrition", sub: "Coach et recettes" },
+  { id: "revision", ico: "learn", name: "Révisions", sub: "Cartes mémoire" },
+  { id: "project", ico: "target", name: "Projet", sub: "Étapes et prochaine action" },
+  { id: "coach", ico: "people", name: "Coach IA", sub: "Pose tes questions" },
 ];
 
 function viewTools() {
-  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary }[ui.tool]();
+  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary, sport: viewSport, nutrition: viewNutrition, revision: viewRevision, project: viewProject, coach: viewCoach }[ui.tool]();
   const m = metrics();
   return `${hud()}
     <h1 class="page-title">Outils</h1>
@@ -1433,6 +1438,128 @@ function viewLibrary() {
     <div class="books">${BOOKS.map((b) => `<button class="book ${read.has(b.id) ? "read" : ""}" data-action="book" data-v="${b.id}" style="--sc:${STATS[b.stat].color}">
       <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].label}</em></button>`).join("")}</div>
   </div>`;
+}
+
+// ---------- Sport ----------
+const coachBtn = (mode, label) => `<button class="btn ghost coach-link" data-action="tool" data-v="coach" data-mode="${mode}">${ico("people")} ${label}</button>`;
+function viewSport() {
+  const mine = (state.answers.sports || []).filter((x) => SPORT_PLANS[x]);
+  const list = [...new Set([...mine, ...Object.keys(SPORT_PLANS).filter((x) => x !== "other")])];
+  const sp = (ui.sport = ui.sport || list[0]);
+  const name = sp === "other" && state.answers.sportOther ? state.answers.sportOther : SPORT_NAMES[sp];
+  const plan = SPORT_PLANS[sp];
+  if (ui.session != null) {
+    const [title, ex] = plan[ui.session];
+    const done = ui.exDone || [];
+    return `<div class="tool-view left"><button class="back-link" data-action="session" data-v="">${BACK} ${esc(name)}</button>
+      <div class="sys-tag">[SYSTÈME] SÉANCE</div><h2 class="big-title">${esc(title)}</h2>
+      <div class="checklist">${ex.map((e, k) => `<button class="chk ${done.includes(k) ? "on" : ""}" data-action="exdone" data-v="${k}"><span class="q-check">${CHECK}</span>${esc(e)}</button>`).join("")}</div>
+      <button class="btn primary" data-action="sessiondone" ${done.length < ex.length ? "disabled" : ""}>Séance terminée (+30 XP)</button></div>`;
+  }
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] SPORT</div><h2 class="big-title">${esc(name)}</h2>
+    <div class="sugg">${list.map((x) => `<button class="chip-s ${x === sp ? "on" : ""}" data-action="sportpick" data-v="${x}">${esc(x === "other" && state.answers.sportOther ? state.answers.sportOther : SPORT_NAMES[x])}${mine.includes(x) ? " ★" : ""}</button>`).join("")}</div>
+    <div class="sessions">${plan.map(([t, ex], k) => `<button class="session" data-action="session" data-v="${k}"><b>Séance ${k + 1} · ${esc(t)}</b><small>${ex.length} exercices · ${esc(ex.slice(0, 2).join(", "))}…</small></button>`).join("")}</div>
+    <p class="sub small">★ = tes sports. Fais 2 à 4 séances par semaine, avec au moins un jour de repos entre deux séances intenses.</p>
+    ${coachBtn("sport", "Une séance sur mesure avec le coach")}</div>`;
+}
+
+// ---------- Nutrition ----------
+function viewNutrition() {
+  const a = state.answers;
+  const goal = a.goal_body === "lose" || a.goal_food === "sugar" ? "lose" : a.goal_body === "muscle" ? "muscle" : a.goal_food === "energy" ? "energy" : "default";
+  if (ui.recipe != null) {
+    const r = RECIPES[ui.recipe];
+    return `<div class="tool-view left"><button class="back-link" data-action="recipe" data-v="">${BACK} Recettes</button>
+      <div class="sys-tag">${r.time} MIN · ${r.tags.join(" · ").toUpperCase()}</div><h2 class="big-title">${esc(r.name)}</h2>
+      <section class="card"><h3>Ingrédients</h3><ul class="plain">${r.ing.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+      <section class="card"><h3>Étapes</h3><ol class="ideas">${r.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></section>
+      <button class="btn primary" data-action="cooked">J'ai cuisiné ce plat (+20 XP)</button></div>`;
+  }
+  const tags = ["Tout", ...new Set(RECIPES.flatMap((r) => r.tags))];
+  const tag = ui.rtag || "Tout";
+  const list = RECIPES.map((r, k) => [r, k]).filter(([r]) => tag === "Tout" || r.tags.includes(tag));
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] NUTRITION</div><h2 class="big-title">Ton carburant.</h2>
+    <section class="card"><h3>Tes 4 règles${goal !== "default" ? ` · objectif ${{ lose: "perte de poids", muscle: "prise de muscle", energy: "énergie" }[goal]}` : ""}</h3>
+      <ol class="ideas">${NUTRI_TIPS[goal].map((x) => `<li>${esc(x)}</li>`).join("")}</ol></section>
+    <h3 class="j-past-title">Recettes faciles</h3>
+    <div class="sugg">${tags.map((t) => `<button class="chip-s ${t === tag ? "on" : ""}" data-action="rtag" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+    <div class="media">${list.map(([r, k]) => `<button class="medium recipe" data-action="recipe" data-v="${k}" style="--sc:var(--gold)"><b>${esc(r.name)}</b><small>${r.time} min · ${esc(r.tags.join(" · "))}</small></button>`).join("")}</div>
+    ${coachBtn("nutrition", "Demander un menu au coach")}
+    <p class="sub small">Conseils généraux, pas un avis médical. En cas de problème de santé, parles-en à un médecin.</p></div>`;
+}
+
+// ---------- Révisions : cartes mémoire (boîtes de Leitner) ----------
+const BOX_DAYS = [0, 1, 3, 7, 16];
+function viewRevision() {
+  state.cards = state.cards || [];
+  const due = state.cards.filter((c) => c.due <= today());
+  if (ui.review && due.length) {
+    const c = due[0];
+    return `<div class="tool-view left"><button class="back-link" data-action="review" data-v="">${BACK} Révisions</button>
+      <div class="sys-tag">[SYSTÈME] RÉVISION · ${due.length} CARTE${due.length > 1 ? "S" : ""}</div>
+      <div class="flash frame"><small>Question</small><p>${esc(c.q)}</p>
+        ${ui.reveal ? `<small>Réponse</small><p class="ans">${esc(c.a)}</p>` : ""}</div>
+      ${ui.reveal ? `<div class="ask-row"><button class="btn ghost" data-action="grade" data-v="0">Pas encore</button><button class="btn primary" data-action="grade" data-v="1">Je savais</button></div>`
+        : `<button class="btn primary" data-action="reveal">Voir la réponse</button>`}
+      <p class="sub small">Réponds dans ta tête avant de retourner la carte. C'est l'effort de rappel qui fait retenir.</p></div>`;
+  }
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] RÉVISIONS</div><h2 class="big-title">Retiens pour de bon.</h2>
+    <div class="stats-row"><div class="stat-box"><b>${state.cards.length}</b><small>cartes</small></div><div class="stat-box"><b>${due.length}</b><small>à revoir</small></div><div class="stat-box"><b>${state.cards.filter((c) => c.box >= 4).length}</b><small>maîtrisées</small></div></div>
+    ${due.length ? `<button class="btn primary" data-action="review" data-v="1">Réviser ${due.length} carte${due.length > 1 ? "s" : ""}</button>` : `<p class="sub">Rien à revoir aujourd'hui. Ajoute des cartes ou reviens demain.</p>`}
+    <form class="auth frame" id="card-form"><label>Question<input name="q" maxlength="200" required placeholder="Ex : Article 1240 du Code civil ?"></label>
+      <label>Réponse<input name="a" maxlength="300" required placeholder="La réponse à retenir"></label>
+      <button class="btn small" type="submit">Ajouter la carte</button></form>
+    <section class="card"><h3>3 méthodes qui marchent</h3><ol class="ideas">
+      <li><b>Rappel actif</b> : cache tes notes et récite. Bien plus efficace que relire.</li>
+      <li><b>Répétition espacée</b> : revoir une carte à J+1, J+3, J+7, J+16. Ces cartes le font pour toi.</li>
+      <li><b>Pomodoro</b> : 25 min de travail, 5 min de pause. Lance l'outil Focus.</li></ol></section>
+    ${coachBtn("revision", "Faire réviser par le coach")}</div>`;
+}
+
+// ---------- Projet ----------
+function viewProject() {
+  state.projects = state.projects || [];
+  const p = state.projects[0];
+  if (!p) {
+    return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] PROJET</div><h2 class="big-title">Ton projet, étape par étape.</h2>
+      <form class="auth frame" id="project-form"><label>Nom du projet<input name="name" maxlength="60" required placeholder="Ex : Lancer ma chaîne YouTube" value="${esc(state.answers.dream || "")}"></label>
+        <label>À quoi ressemble la réussite ?<input name="goal" maxlength="120" placeholder="Ex : 10 vidéos publiées"></label>
+        <button class="btn primary" type="submit">Créer mon projet</button></form></div>`;
+  }
+  const next = p.steps.find((x) => !x.done);
+  const done = p.steps.filter((x) => x.done).length;
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] PROJET</div><h2 class="big-title">${esc(p.name)}</h2>
+    ${p.goal ? `<p class="sub">Réussite : ${esc(p.goal)}</p>` : ""}
+    <div class="xpbar"><div style="width:${p.steps.length ? (done / p.steps.length) * 100 : 0}%"></div></div>
+    <div class="xpbar-label"><span>${done}/${p.steps.length} étapes</span></div>
+    ${next ? `<div class="goal-pin">${ico("target")}<span><small>PROCHAINE ACTION</small>${esc(next.t)}</span></div>` : ""}
+    <div class="checklist">${p.steps.map((x, k) => `<button class="chk ${x.done ? "on" : ""}" data-action="stepdone" data-v="${k}"><span class="q-check">${CHECK}</span>${esc(x.t)}</button>`).join("")}</div>
+    <form class="g-add" id="step-form"><label class="text-wrap">${ico("pen")}<input class="text-in" name="t" maxlength="100" placeholder="Nouvelle étape (moins de 30 min)" required></label><button class="btn small" type="submit">Ajouter</button></form>
+    ${coachBtn("projet", "Découper mon projet avec le coach")}
+    <button class="row-btn danger" data-action="projdel">Supprimer ce projet</button></div>`;
+}
+
+// ---------- Coach IA ----------
+const COACH_MODES = [["sport", "Sport"], ["nutrition", "Nutrition"], ["revision", "Révisions"], ["projet", "Projet"]];
+function coachProfile() {
+  const a = state.answers;
+  return [`prénom ${state.name}`, a.age && `âge ${a.age}+`, a.status && `situation ${a.status}`, a.field && `domaine ${a.field}`,
+    (a.sports || []).length && `sports ${(a.sports || []).map((x) => SPORT_NAMES[x]).join(", ")}`, a.mainGoal && `objectif ${a.mainGoal}`,
+    `rang ${rankFor(levelInfo(totalXp()).lvl).letter}`].filter(Boolean).join(", ");
+}
+function viewCoach() {
+  const mode = ui.coachMode || "projet";
+  const msgs = ((ui.chat = ui.chat || {})[mode] = ui.chat[mode] || []);
+  if (!cloud.enabled || !cloud.user) return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] COACH IA</div>
+    ${mangaCard({ kicker: "Coach IA", title: "Connecte-toi d'abord.", text: "Le coach répond grâce à l'IA sur le serveur. Crée ton compte dans l'onglet Guilde.", seal: false })}</div>`;
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] COACH IA</div>
+    <div class="seg wide">${COACH_MODES.map(([k, n]) => `<button class="${mode === k ? "on" : ""}" data-action="coachmode" data-v="${k}">${n}</button>`).join("")}</div>
+    <div class="chat" id="chat">${msgs.length ? msgs.map((m) => `<div class="bubble ${m.role}">${esc(m.content).replace(/\n/g, "<br>")}</div>`).join("")
+      : `<div class="bubble assistant">${{ sport: "Dis-moi ton sport, ton niveau et ton matériel : je te prépare une séance.", nutrition: "Ton objectif ? Je te propose des repas simples et des recettes.", revision: "Quelle matière, quel examen, quelle date ? Je t'aide à t'organiser ou je t'interroge.", projet: "Raconte-moi ton projet. On va le découper en petites actions." }[mode]}</div>`}
+      ${ui.coachBusy ? `<div class="bubble assistant typing">Le coach écrit…</div>` : ""}</div>
+    ${ui.coachError ? `<p class="auth-err">${esc(ui.coachError)}</p>` : ""}
+    <form class="g-add" id="coach-form"><label class="text-wrap">${ico("pen")}<input class="text-in" name="m" maxlength="800" placeholder="Écris ta question…" autocomplete="off" required></label><button class="btn small" type="submit" ${ui.coachBusy ? "disabled" : ""}>Envoyer</button></form>
+    <p class="sub small">Conseils d'une IA, pas d'un professionnel de santé. 20 messages par jour.</p></div>`;
 }
 
 function startTimer(kind) {
@@ -1964,6 +2091,8 @@ const actions = {
   },
   tool(el) {
     ui.tool = el.dataset.v || null;
+    if (el.dataset.mode) ui.coachMode = el.dataset.mode;
+    ui.session = ui.recipe = null; ui.review = false;
     ui.book = null;
     render();
   },
@@ -2004,6 +2133,31 @@ const actions = {
     ui.book = el.dataset.v || null;
     render();
   },
+  sportpick(el) { ui.sport = el.dataset.v; ui.session = null; render(); },
+  session(el) { ui.session = el.dataset.v === "" ? null : Number(el.dataset.v); ui.exDone = []; render(); },
+  exdone(el) { const k = Number(el.dataset.v); ui.exDone = ui.exDone.includes(k) ? ui.exDone.filter((x) => x !== k) : [...ui.exDone, k]; render(); },
+  sessiondone() { if (!awardExtra("sport-" + (ui.sport || "x"), 30, "FOR", 1)) toast("Séance déjà comptée aujourd'hui pour ce sport."); ui.session = null; render(); },
+  recipe(el) { ui.recipe = el.dataset.v === "" ? null : Number(el.dataset.v); render(); },
+  rtag(el) { ui.rtag = el.dataset.v; render(); },
+  cooked() { if (!awardExtra("recipe", 20, "ENE", 1)) toast("Déjà compté aujourd'hui. Bon appétit !"); ui.recipe = null; render(); },
+  review(el) { ui.review = !!el.dataset.v; ui.reveal = false; render(); },
+  reveal() { ui.reveal = true; render(); },
+  grade(el) {
+    const c = state.cards.filter((x) => x.due <= today())[0];
+    c.box = el.dataset.v === "1" ? Math.min(4, c.box + 1) : 0;
+    c.due = addDays(today(), BOX_DAYS[c.box] || 1);
+    ui.reviewed = (ui.reviewed || 0) + 1;
+    if (ui.reviewed === 5) awardExtra("cards", 15, "SAV", 1);
+    ui.reveal = false; save(); render();
+  },
+  stepdone(el) {
+    const st = state.projects[0].steps[Number(el.dataset.v)];
+    st.done = !st.done;
+    if (st.done) awardExtra("project", 15, "COU", 3);
+    save(); render();
+  },
+  projdel() { ask("Supprimer ce projet et ses étapes ?", "Supprimer", () => { state.projects.shift(); save(); render(); }); },
+  coachmode(el) { ui.coachMode = el.dataset.v; ui.coachError = ""; render(); },
   libtab(el) {
     ui.libTab = el.dataset.v;
     ui.book = null;
@@ -2128,6 +2282,7 @@ const actions = {
   tab(el) {
     ui.tab = el.dataset.v;
     ui.creator = false;
+    ui.tool = null;
     if (ui.tab === "guild") guildLoad();
     render();
   },
@@ -2242,6 +2397,33 @@ $app.addEventListener("submit", async (e) => {
     try { cloud.profile = await cloud.api.createProfile({ id: cloud.user.id, username: u, ...myStats() }); ui.authError = ""; }
     catch (err) { ui.authError = authMsg(err.message); }
     render(); guildLoad();
+    return;
+  }
+  if (f0.id === "card-form") {
+    state.cards = state.cards || [];
+    state.cards.push({ q: f0.q.value.trim(), a: f0.a.value.trim(), box: 0, due: today() });
+    save(); toast("Carte ajoutée"); render(); return;
+  }
+  if (f0.id === "project-form") {
+    state.projects = [{ name: f0.name.value.trim(), goal: f0.goal.value.trim(), steps: [] }];
+    save(); render(); return;
+  }
+  if (f0.id === "step-form") {
+    state.projects[0].steps.push({ t: f0.t.value.trim(), done: false });
+    save(); render(); return;
+  }
+  if (f0.id === "coach-form") {
+    const mode = ui.coachMode || "projet";
+    const text = f0.m.value.trim();
+    if (!text) return;
+    ui.chat[mode].push({ role: "user", content: text });
+    ui.coachBusy = true; ui.coachError = ""; render();
+    try {
+      const r = await cloud.api.coach({ mode, profile: coachProfile(), messages: ui.chat[mode] });
+      ui.chat[mode].push({ role: "assistant", content: r.reply });
+    } catch (err) { ui.coachError = err.message; ui.chat[mode].pop(); }
+    ui.coachBusy = false; render();
+    const ch = document.getElementById("chat"); if (ch) ch.scrollIntoView({ block: "end" });
     return;
   }
   if (f0.id === "friend-form") {

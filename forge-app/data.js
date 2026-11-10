@@ -788,3 +788,50 @@ const MEDIA = [
 ];
 // Livre conseillé selon le point faible.
 const BOOK_FOR = { FOR: "goggins", MEN: "mindset", ENE: "why", SOC: "carnegie", SAV: "deepwork", COU: "goggins", FOI: "frankl", DIS: "atomic" };
+
+// ---------- Programmes sportifs (3 séances type par sport) ----------
+const SPORT_NAMES = { muscu: "Musculation", calisth: "Street workout", run: "Course à pied", walk: "Marche et rando", foot: "Football", basket: "Basket", combat: "Sports de combat", swim: "Natation", bike: "Vélo", racket: "Raquette", climb: "Escalade", yoga: "Yoga et pilates", dance: "Danse", home: "Sport à la maison", other: "Ton sport" };
+const SPORT_PLANS = {
+  muscu: [["Haut du corps", ["Échauffement 5 min", "Développé couché 4×8", "Rowing haltère 4×10", "Développé militaire 3×10", "Tractions assistées 3×max", "Gainage 3×40 s"]],
+    ["Bas du corps", ["Échauffement 5 min", "Squat 4×8", "Soulevé de terre roumain 4×10", "Fentes 3×12 par jambe", "Mollets 4×15", "Gainage latéral 3×30 s"]],
+    ["Full body", ["Échauffement 5 min", "Goblet squat 3×12", "Pompes 3×max", "Rowing 3×12", "Hip thrust 3×12", "Farmer walk 3×30 m"]]],
+  calisth: [["Tirage", ["Suspension 3×30 s", "Tractions 5×max", "Australian rows 3×12", "Chin-ups négatives 3×5"]],
+    ["Poussée", ["Pompes 5×max", "Dips 4×max", "Pike push-ups 3×8", "Pompes diamant 3×10"]],
+    ["Jambes et gainage", ["Squats 4×20", "Fentes sautées 3×10", "Hollow hold 3×30 s", "L-sit 5×10 s"]]],
+  run: [["Footing", ["10 min de marche rapide", "20 à 30 min de course lente (tu peux parler)", "5 min d'étirements"]],
+    ["Fractionné", ["10 min d'échauffement", "8 × 30 s rapide / 1 min lent", "10 min de retour au calme"]],
+    ["Sortie longue", ["Course lente 40 à 60 min", "Hydratation", "Étirements 10 min"]]],
+  walk: [["Marche active", ["45 min à bon rythme", "Grandes foulées, bras actifs"]], ["Dénivelé", ["Monter des escaliers ou une côte 20 min", "Descente contrôlée"]], ["Rando", ["Sortie de 2 h en nature", "Sac léger, eau, encas"]]],
+  foot: [["Technique", ["Jongles : bats ton record", "Conduite de balle en slalom 10 min", "Passes contre un mur 10 min"]], ["Physique", ["Sprints 10×20 m", "Changements de direction 6×", "Gainage 3×45 s"]], ["Finition", ["Frappes pied faible 30 tirs", "Frappes pied fort 30 tirs", "Petit match ou five"]]],
+  basket: [["Tir", ["100 tirs à mi-distance", "50 lancers francs (note ton %)"]], ["Dribble", ["Dribble main faible 10 min", "Crossovers 5 min", "Dribble yeux fermés 3 min"]], ["Physique", ["Sauts 5×10", "Sprints terrain 10×", "Défense en pas chassés 5×30 s"]]],
+  combat: [["Technique", ["Corde à sauter 3×3 min", "Shadow 4×3 min", "Combinaisons au sac 4×3 min"]], ["Cardio", ["Burpees 5×10", "Sac en continu 5×1 min", "Gainage 3×1 min"]], ["Force", ["Pompes 4×15", "Squats sautés 4×12", "Rotation de buste au médecine-ball 3×15"]]],
+  swim: [["Endurance", ["200 m d'échauffement", "4×100 m crawl tranquille", "100 m dos de récupération"]], ["Technique", ["Éducatifs de bras 6×50 m", "Battements avec planche 4×50 m"]], ["Vitesse", ["8×25 m rapide", "Récupération 30 s entre chaque"]]],
+  bike: [["Balade", ["45 min à allure confortable"]], ["Côtes", ["5 montées en danseuse", "Descentes en récupération"]], ["Sortie longue", ["1 h 30 à rythme régulier", "Boire toutes les 15 min"]]],
+  racket: [["Technique", ["Coup droit 10 min", "Revers 10 min", "Service 30 balles"]], ["Jeu de jambes", ["Pas chassés 5×30 s", "Fentes latérales 3×12"]], ["Match", ["Échauffement 10 min", "Un set ou un match"]]],
+  climb: [["Bloc", ["Échauffement sur voies faciles", "5 blocs de ton niveau", "2 essais au-dessus"]], ["Force", ["Suspension 6×10 s", "Tractions 4×max", "Gainage 3×45 s"]], ["Technique", ["Grimper en silence (pieds précis)", "Traversées 4×"]]],
+  yoga: [["Réveil", ["Salutation au soleil ×5", "Chien tête en bas 1 min", "Posture de l'enfant 1 min"]], ["Souplesse", ["Pince assise 2 min", "Pigeon 1 min par côté", "Torsions 1 min"]], ["Force", ["Planche 1 min", "Guerrier II 1 min par côté", "Chaise 45 s"]]],
+  dance: [["Bases", ["Échauffement articulaire 5 min", "Pas de base 15 min", "Étirements"]], ["Chorégraphie", ["Apprendre 8 temps", "Les répéter 10 fois", "Te filmer"]], ["Freestyle", ["3 morceaux en improvisation", "Varier les niveaux (haut, bas)"]]],
+  home: [["Cardio", ["Jumping jacks 4×40 s", "Montées de genoux 4×30 s", "Burpees 3×10"]], ["Renfo", ["Pompes 4×max", "Squats 4×20", "Fentes 3×12", "Gainage 3×45 s"]], ["Mobilité", ["Rotations articulaires 5 min", "Étirements 15 min"]]],
+  other: [["Technique", ["Échauffement 10 min", "Travail technique 20 min", "Retour au calme"]], ["Physique", ["Cardio 15 min", "Renforcement 15 min"]], ["Pratique", ["Séance ou match", "Note ce que tu as appris"]]],
+};
+
+// ---------- Nutrition ----------
+const NUTRI_TIPS = {
+  lose: ["Une assiette : ½ légumes, ¼ protéines, ¼ féculents.", "Bois un grand verre d'eau avant chaque repas.", "Pas de boisson sucrée : c'est le plus gros gain.", "Marche 10 à 30 min après le repas du soir."],
+  muscle: ["Vise 1,6 g de protéines par kilo de poids de corps par jour.", "Une source de protéines à chaque repas.", "Ne saute pas le petit-déjeuner après l'entraînement.", "Dors 7 à 9 h : c'est la nuit que le muscle se construit."],
+  energy: ["Petit-déjeuner avec protéines plutôt que sucre.", "Fruits et légumes à chaque repas.", "Évite le gros repas lourd le midi.", "1,5 à 2 L d'eau par jour."],
+  default: ["Mange lentement, sans écran.", "Cuisine maison le plus souvent possible.", "Des légumes à chaque repas.", "Limite les produits ultra-transformés."],
+};
+// Recettes simples, sans porc ni alcool.
+const RECIPES = [
+  { name: "Omelette protéinée", time: 10, tags: ["Protéiné", "Rapide"], ing: ["3 œufs", "1 poignée d'épinards", "40 g de feta", "Sel, poivre"], steps: ["Battre les œufs", "Faire revenir les épinards 1 min", "Verser les œufs, ajouter la feta", "Plier quand c'est pris"] },
+  { name: "Bowl poulet riz légumes", time: 25, tags: ["Protéiné", "Prise de masse"], ing: ["150 g de poulet", "80 g de riz", "1 courgette", "Sauce soja, citron"], steps: ["Cuire le riz", "Poêler le poulet en dés", "Ajouter la courgette en rondelles", "Servir avec soja et citron"] },
+  { name: "Overnight oats", time: 5, tags: ["Petit-déj", "Énergie"], ing: ["50 g de flocons d'avoine", "150 g de skyr ou yaourt", "Lait", "Fruits rouges"], steps: ["Tout mélanger dans un bocal", "Une nuit au frigo", "Ajouter les fruits le matin"] },
+  { name: "Dahl de lentilles corail", time: 25, tags: ["Végétarien", "Pas cher"], ing: ["150 g de lentilles corail", "1 brique de lait de coco", "1 oignon", "Curry, cumin"], steps: ["Faire revenir l'oignon et les épices", "Ajouter lentilles, coco et 300 ml d'eau", "Cuire 15 min en remuant"] },
+  { name: "Salade de thon complète", time: 10, tags: ["Rapide", "Perte de poids"], ing: ["1 boîte de thon", "Pois chiches", "Tomates, concombre", "Huile d'olive, citron"], steps: ["Couper les légumes", "Mélanger avec thon et pois chiches", "Assaisonner"] },
+  { name: "Saumon au four et patate douce", time: 30, tags: ["Oméga-3", "Énergie"], ing: ["1 pavé de saumon", "1 patate douce", "Brocoli", "Huile d'olive, paprika"], steps: ["Couper la patate douce en cubes", "Four 200 °C 15 min", "Ajouter saumon et brocoli, 12 min de plus"] },
+  { name: "Wrap dinde avocat", time: 8, tags: ["Rapide", "Protéiné"], ing: ["1 galette complète", "Tranches de dinde", "½ avocat", "Salade, tomate"], steps: ["Écraser l'avocat sur la galette", "Garnir", "Rouler serré"] },
+  { name: "Shakshuka", time: 20, tags: ["Végétarien", "Pas cher"], ing: ["4 œufs", "1 boîte de tomates", "1 poivron", "Cumin, paprika"], steps: ["Faire revenir poivron et épices", "Ajouter les tomates, laisser réduire 8 min", "Creuser 4 puits, casser les œufs, couvrir 5 min"] },
+  { name: "Smoothie récup'", time: 5, tags: ["Après sport", "Rapide"], ing: ["1 banane", "200 ml de lait", "1 c. à soupe de beurre de cacahuète", "Flocons d'avoine"], steps: ["Tout mixer", "Boire dans l'heure après l'entraînement"] },
+  { name: "Poêlée de légumes et œufs", time: 15, tags: ["Perte de poids", "Végétarien"], ing: ["Légumes de saison", "2 œufs", "Ail, herbes"], steps: ["Poêler les légumes 8 min", "Ajouter les œufs brouillés", "Assaisonner"] },
+];

@@ -126,3 +126,13 @@ alter table public.hero_generations enable row level security;
 drop policy if exists "ses générations" on public.hero_generations;
 create policy "ses générations" on public.hero_generations for select to authenticated using (user_id = auth.uid());
 grant select on public.hero_generations to authenticated;
+
+-- ---------- Coach IA : compteur de messages (limite par jour) ----------
+create table if not exists public.coach_usage (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  mode text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists coach_usage_user on public.coach_usage (user_id, created_at);
+alter table public.coach_usage enable row level security;
