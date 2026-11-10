@@ -1013,3 +1013,14 @@ img.logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0
 :root[data-theme="samurai"] .mpanel.art img, :root[data-theme="samurai"] .unlock-hero.art { filter: sepia(.6) hue-rotate(-30deg) saturate(1.4); }
 :root[data-theme="zen"] .mpanel.art img, :root[data-theme="zen"] .unlock-hero.art { filter: sepia(.35) brightness(1.05); }
 .blade.pact-art .drop { left: 47.5%; top: 80%; }
+
+/* ----- Accueil : illustration entière, personnage visible ----- */
+.screen.welcome { justify-content: flex-start; gap: 0; padding-top: 0; }
+.welcome-art { position: relative; inset: auto; flex: 1 1 auto; min-height: 340px; height: auto; margin: 0 -20px; }
+.welcome-art img { position: absolute; inset: 0; object-position: 50% 100%;
+  -webkit-mask: linear-gradient(#000 88%, transparent); mask: linear-gradient(#000 88%, transparent); }
+.welcome-body.frame { margin-top: -18px; padding: 16px 16px 12px; }
+.welcome h1 { font-size: clamp(24px, 7vw, 32px); margin: 10px 0 6px; }
+.welcome .lead { font-size: 14px; margin-bottom: 14px; }
+.w-cta { padding: 13px; }
+.welcome .link { margin-top: 8px; }
