@@ -16,7 +16,7 @@ SQL Editor → New query → colle le bloc « Suppression de compte » qui se tr
    cd mobile
    npm install
    npm run sync
-   npm run open
+   npm run open:ios
    ```
    Xcode s'ouvre sur le projet.
 
