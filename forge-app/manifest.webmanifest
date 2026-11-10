@@ -1,0 +1,10 @@
+{
+  "name": "Soul Leveling — l'épreuve des 100 jours",
+  "short_name": "Soul Leveling",
+  "lang": "fr",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#050914",
+  "theme_color": "#050914",
+  "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }, { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }]
+}
