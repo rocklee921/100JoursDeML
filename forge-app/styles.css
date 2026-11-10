@@ -982,3 +982,19 @@ img.logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0
 .bubble.typing { color: var(--muted); font-style: italic; }
 .tool-view .g-add .btn { width: auto; flex: none; }
 .tool-view .g-add { width: 100%; }
+
+/* ----- Voies Lumière / Ombre ----- */
+.sw-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.sw-row small { display: block; font: 600 9.5px var(--mono); letter-spacing: .14em; color: var(--muted); margin-bottom: 6px; }
+.pill-s { display: inline-block; margin: 0 4px 6px 0; padding: 4px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.pill-s.up { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.pill-s.down { background: color-mix(in srgb, #f87171 18%, transparent); color: #f87171; }
+.path-panel { height: 200px; }
+.path-shadow .path-panel { background: #0e0716; } .path-shadow .path-panel img { filter: invert(1) hue-rotate(250deg) saturate(2) brightness(.8); mix-blend-mode: screen; }
+.path-shadow .path-panel figcaption { background: #1a0b2e; color: #e9d5ff; border-color: #a855f7; }
+.arts { display: flex; flex-direction: column; gap: 8px; }
+.art { border-radius: 12px; background: var(--card); border: 1px solid var(--line); padding: 12px 14px; }
+.art summary { font: 700 15px var(--display); cursor: pointer; }
+.path-shadow .art { border-left: 3px solid #a855f7; } .path-light .art { border-left: 3px solid #fbbf24; }
+.art p { font-size: 14px; line-height: 1.5; color: var(--muted); margin-top: 8px; }
+.art b { color: var(--text); }

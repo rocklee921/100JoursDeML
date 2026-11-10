@@ -435,6 +435,16 @@ const QUIZ = [
   },
   ...MBTI_STEPS,
   {
+    id: "path",
+    type: "single",
+    q: "Choisis ton camp.",
+    sub: "Lumière : le pouvoir par le lien et l'exemple. Ombre : le pouvoir par la maîtrise de soi et la stratégie. Tu pourras changer plus tard.",
+    options: [
+      { v: "light", icon: "light", label: "Voie de la Lumière" },
+      { v: "shadow", icon: "blade", label: "Voie de l'Ombre" },
+    ],
+  },
+  {
     id: "wake",
     type: "choice-grid",
     q: "À quelle heure veux-tu te lever ?",
@@ -835,3 +845,51 @@ const RECIPES = [
   { name: "Smoothie récup'", time: 5, tags: ["Après sport", "Rapide"], ing: ["1 banane", "200 ml de lait", "1 c. à soupe de beurre de cacahuète", "Flocons d'avoine"], steps: ["Tout mixer", "Boire dans l'heure après l'entraînement"] },
   { name: "Poêlée de légumes et œufs", time: 15, tags: ["Perte de poids", "Végétarien"], ing: ["Légumes de saison", "2 œufs", "Ail, herbes"], steps: ["Poêler les légumes 8 min", "Ajouter les œufs brouillés", "Assaisonner"] },
 ];
+
+// ---------- Choix du camp : Lumière ou Ombre ----------
+const PATHS = {
+  light: { name: "Voie de la Lumière", icon: "light", color: "#fbbf24", motto: "Le pouvoir par le lien, la bienveillance et l'exemple.",
+    quests: [["Écoute active : reformule ce qu'on te dit", "Avant de donner ton avis", "SOC", 20], ["Aide quelqu'un sans rien attendre", "Discret, sincère", "SOC", 20], ["Exprime une émotion avec calme", "« Je ressens… parce que… »", "MEN", 20]] },
+  shadow: { name: "Voie de l'Ombre", icon: "blade", color: "#a855f7", motto: "Le pouvoir par la maîtrise de soi, la lucidité et la stratégie.",
+    quests: [["Silence stratégique : 3 secondes avant de répondre", "Le silence donne du poids à tes mots", "MEN", 20], ["Dis non une fois, sans te justifier", "« Non, ça ne me convient pas. » Point.", "COU", 25], ["Repère une technique d'influence", "Dans une pub, une vidéo ou une discussion", "SAV", 20]] },
+};
+// Arts de l'Ombre : comprendre, maîtriser, se protéger. Arts de la Lumière : rayonner.
+const ARTS = {
+  shadow: [
+    ["Le regard", "Un regard stable et calme impose la présence. Tiens le contact visuel 3 à 5 secondes, puis détourne lentement.", "Si quelqu'un te fixe pour te déstabiliser, respire, regarde entre ses sourcils et reste neutre : la pression disparaît."],
+    ["Le silence", "Celui qui parle trop se dévoile. Après une question importante, tais-toi et laisse l'autre combler le silence.", "Face à un silence gênant en négociation, ne fais pas de concession pour le remplir. Attends."],
+    ["La rareté", "Ce qui est rare paraît précieux. Ne sois pas disponible pour tout le monde, tout le temps.", "« Plus que 2 places », « offre limitée » : quand on te presse, prends 24 h avant de décider."],
+    ["La réciprocité", "Un petit cadeau crée une dette. Donne en premier, c'est la base de l'influence.", "Un cadeau suivi d'une demande ? Tu as le droit de remercier et de refuser quand même."],
+    ["L'ancrage", "Le premier chiffre posé oriente toute la discussion. En négociation, ancre haut et justifie.", "Ignore le premier prix annoncé. Cherche le vrai prix ailleurs avant de répondre."],
+    ["Le cadrage", "Une même chose dite autrement change tout : « 90 % de réussite » rassure plus que « 10 % d'échec ».", "Reformule toujours la proposition dans l'autre sens avant de dire oui."],
+    ["Lire les corps", "Bras croisés, pieds tournés vers la sortie, sourire qui n'atteint pas les yeux : les corps parlent avant les mots.", "Sois prudent : un seul signe ne veut rien dire. Cherche des groupes de signaux."],
+    ["Le contrôle émotionnel", "Qui garde son calme garde le pouvoir. Ralentis ta voix et ta respiration quand la tension monte.", "Si quelqu'un cherche à te faire réagir, c'est qu'il veut que tu perdes le contrôle. Ne lui donne pas."],
+    ["Repérer la manipulation", "Culpabilisation, flatterie soudaine, urgence, « si tu m'aimais vraiment… » : ce sont des leviers connus.", "Nomme-le calmement (« Je sens de la pression, je vais réfléchir ») et éloigne-toi des personnes qui l'utilisent souvent."],
+  ],
+  light: [
+    ["L'écoute", "Les gens se souviennent de comment tu les as fait se sentir. Écoute pour comprendre, pas pour répondre.", "Pose une deuxième question sur ce que la personne vient de dire."],
+    ["La gratitude", "Remercier précisément crée des liens forts.", "Dis à quelqu'un exactement ce qu'il a fait et pourquoi ça t'a aidé."],
+    ["L'exemple", "On suit ceux qui font, pas ceux qui disent.", "Fais avant de demander aux autres de faire."],
+    ["La vulnérabilité", "Avouer une faiblesse avec calme inspire confiance.", "Partage un échec et ce que tu en as appris."],
+    ["La générosité", "Donner sans compter attire les bonnes personnes.", "Un service par jour, sans le crier."],
+  ],
+};
+// Forces et faiblesses par type MBTI, et le camp conseillé.
+const MBTI_TRAITS = {
+  INTJ: [["Vision à long terme", "Stratégie"], ["Impatience avec les autres", "Froideur perçue"], "shadow"],
+  INTP: [["Analyse", "Créativité intellectuelle"], ["Procrastination", "Passage à l'action"], "shadow"],
+  ENTJ: [["Leadership", "Décision"], ["Autoritarisme", "Écoute"], "shadow"],
+  ENTP: [["Répartie", "Idées neuves"], ["Dispersion", "Suivi des projets"], "shadow"],
+  INFJ: [["Intuition des gens", "Sens profond"], ["Épuisement social", "Perfectionnisme"], "light"],
+  INFP: [["Empathie", "Imagination"], ["Discipline", "Affirmation de soi"], "light"],
+  ENFJ: [["Charisme bienveillant", "Motivation des autres"], ["S'oublier soi-même", "Dire non"], "light"],
+  ENFP: [["Enthousiasme", "Connexion aux autres"], ["Régularité", "Finir ce qui est commencé"], "light"],
+  ISTJ: [["Fiabilité", "Rigueur"], ["Rigidité", "Expression des émotions"], "shadow"],
+  ISFJ: [["Loyauté", "Attention aux autres"], ["Dire non", "Prendre sa place"], "light"],
+  ESTJ: [["Organisation", "Efficacité"], ["Écoute", "Souplesse"], "shadow"],
+  ESFJ: [["Chaleur", "Esprit d'équipe"], ["Besoin d'approbation", "Critique"], "light"],
+  ISTP: [["Sang-froid", "Débrouillardise"], ["Engagement long terme", "Communication"], "shadow"],
+  ISFP: [["Sensibilité", "Authenticité"], ["Confrontation", "Planification"], "light"],
+  ESTP: [["Audace", "Adaptation"], ["Patience", "Réflexion avant d'agir"], "shadow"],
+  ESFP: [["Énergie", "Aisance sociale"], ["Constance", "Vision à long terme"], "light"],
+};

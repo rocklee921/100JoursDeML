@@ -106,6 +106,7 @@ function buildProgram(a) {
     const pickd = (a.focus || []).includes(dom) && g.o.find((o) => o[0] === a["goal_" + dom]);
     if (pickd) add({ id: "g-" + dom, title: pickd[2], sub: pickd[3], stat: pickd[4], xp: Math.round(pickd[5] * (0.8 + i * 0.1)) });
   });
+  if (PATHS[a.path]) PATHS[a.path].quests.slice(0, i >= 3 ? 2 : 1).forEach(([title, sub, stat, xp], k) => add({ id: `p-${a.path}-${k}`, title, sub, stat, xp }));
   all(a.enemy).forEach(fromSpecial);
   all(a.mindIssue).forEach(fromSpecial);
   if ((a.focus || []).includes("faith")) {
@@ -233,12 +234,19 @@ function mbtiOf(a) {
   MBTI_TEST.forEach((_, k) => { if (a["mt" + k]) votes[a["mt" + k]] = (votes[a["mt" + k]] || 0) + 1; });
   return ["EI", "SN", "TF", "JP"].map(([x, y]) => ((votes[x] || 0) >= (votes[y] || 0) ? x : y)).join("");
 }
+function recommendedPath(a) {
+  const t = mbtiOf(a);
+  return t && MBTI_TRAITS[t] ? MBTI_TRAITS[t][2] : null;
+}
+
 function mbtiCard(a) {
   const t = mbtiOf(a);
   if (!t) return "";
   return `<div class="mbti-card">
     <div class="mbti-head"><span class="mbti-type">${t}</span><div><small>TA PERSONNALITÉ</small><b>${MBTI_TYPES[t]}</b></div></div>
     <ul>${[t[0], t[3]].map((l) => `<li>${esc(MBTI_TIPS[l])}</li>`).join("")}</ul>
+    ${MBTI_TRAITS[t] ? `<div class="sw-row"><div><small>FORCES</small>${MBTI_TRAITS[t][0].map((x) => `<span class="pill-s up">${esc(x)}</span>`).join("")}</div>
+      <div><small>À TRAVAILLER</small>${MBTI_TRAITS[t][1].map((x) => `<span class="pill-s down">${esc(x)}</span>`).join("")}</div></div>` : ""}
     ${a.mbtiKnow === "test" ? `<p class="mbti-note">Résultat indicatif d'un mini-test, pas un diagnostic.</p>` : ""}
   </div>`;
 }
@@ -750,7 +758,7 @@ function viewQuiz() {
     body = `<div class="options">${opts
       .map(
         (o) => `<button class="opt ${a[s.id] === o.v ? "on" : ""}" data-action="pick" data-v="${esc(o.v)}">
-          ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</button>`
+          ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : s.id === "path" && recommendedPath(a) === o.v ? `<small>conseillé pour ${mbtiOf(a)}</small>` : ""}</button>`
       )
       .join("")}</div>`;
   } else if (s.type === "multi") {
@@ -1341,10 +1349,11 @@ const TOOLS = [
   { id: "revision", ico: "learn", name: "Révisions", sub: "Cartes mémoire" },
   { id: "project", ico: "target", name: "Projet", sub: "Étapes et prochaine action" },
   { id: "coach", ico: "people", name: "Coach IA", sub: "Pose tes questions" },
+  { id: "path", ico: "blade", name: "Ta voie", sub: "Lumière ou Ombre" },
 ];
 
 function viewTools() {
-  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary, sport: viewSport, nutrition: viewNutrition, revision: viewRevision, project: viewProject, coach: viewCoach }[ui.tool]();
+  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary, sport: viewSport, nutrition: viewNutrition, revision: viewRevision, project: viewProject, coach: viewCoach, path: viewPathTool }[ui.tool]();
   const m = metrics();
   return `${hud()}
     <h1 class="page-title">Outils</h1>
@@ -1537,6 +1546,31 @@ function viewProject() {
     <form class="g-add" id="step-form"><label class="text-wrap">${ico("pen")}<input class="text-in" name="t" maxlength="100" placeholder="Nouvelle étape (moins de 30 min)" required></label><button class="btn small" type="submit">Ajouter</button></form>
     ${coachBtn("projet", "Découper mon projet avec le coach")}
     <button class="row-btn danger" data-action="projdel">Supprimer ce projet</button></div>`;
+}
+
+// ---------- Voie de la Lumière / de l'Ombre ----------
+function viewPathTool() {
+  const a = state.answers;
+  const cur = a.path || recommendedPath(a) || "light";
+  const P = PATHS[cur];
+  const t = mbtiOf(a);
+  const tr = t && MBTI_TRAITS[t];
+  return `<div class="tool-view left path-${cur}">
+    <div class="sys-tag">[SYSTÈME] TA VOIE</div>
+    <div class="seg wide">${Object.entries(PATHS).map(([k, p]) => `<button class="${cur === k ? "on" : ""}" data-action="setpath" data-v="${k}">${p.name.replace("Voie de l'", "").replace("Voie de la ", "")}</button>`).join("")}</div>
+    <figure class="mpanel path-panel tilt-l"><img src="assets/${cur === "shadow" ? "hero" : "hero-soul"}.webp" alt="" style="object-position:55% 15%"><div class="mp-lines"></div>
+      <figcaption>${esc(P.name)}</figcaption></figure>
+    <p class="sub">${esc(P.motto)}${recommendedPath(a) ? ` Pour ton type ${t}, le Système conseille la ${PATHS[recommendedPath(a)].name}.` : ""}</p>
+    ${tr ? `<section class="card"><h3>Ton type ${t}</h3><div class="sw-row"><div><small>FORCES À EXPLOITER</small>${tr[0].map((x) => `<span class="pill-s up">${esc(x)}</span>`).join("")}</div>
+      <div><small>FAIBLESSES À TRAVAILLER</small>${tr[1].map((x) => `<span class="pill-s down">${esc(x)}</span>`).join("")}</div></div></section>`
+      : `<p class="sub small">Indique ta personnalité MBTI dans ton Profil pour voir tes forces et tes faiblesses.</p>`}
+    <h3 class="j-past-title">${cur === "shadow" ? "Arts de l'Ombre : maîtrise et protection" : "Arts de la Lumière"}</h3>
+    <div class="arts">${ARTS[cur].map(([n, use, guard]) => `<details class="art"><summary>${esc(n)}</summary>
+      <p><b>${cur === "shadow" ? "Le maîtriser" : "Le pratiquer"} :</b> ${esc(use)}</p><p><b>${cur === "shadow" ? "Te protéger" : "Défi du jour"} :</b> ${esc(guard)}</p></details>`).join("")}</div>
+    <section class="card"><h3>À lire</h3><ul class="plain">${(cur === "shadow"
+      ? ["Les 48 lois du pouvoir, Robert Greene", "Influence et manipulation, Robert Cialdini", "Ne coupez jamais la poire en deux, Chris Voss", "Les lois de la nature humaine, Robert Greene"]
+      : ["Comment se faire des amis, Dale Carnegie", "Pensées pour moi-même, Marc Aurèle", "Les quatre accords toltèques, Don Miguel Ruiz", "Découvrir un sens à sa vie, Viktor Frankl"]).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+    <p class="sub small">Le vrai pouvoir commence par le contrôle de soi. Utilise ces savoirs pour te protéger et grandir, jamais pour nuire.</p></div>`;
 }
 
 // ---------- Coach IA ----------
@@ -2157,6 +2191,12 @@ const actions = {
     save(); render();
   },
   projdel() { ask("Supprimer ce projet et ses étapes ?", "Supprimer", () => { state.projects.shift(); save(); render(); }); },
+  setpath(el) {
+    state.answers.path = el.dataset.v;
+    state.quests = state.quests.filter((q) => !q.id.startsWith("p-"));
+    PATHS[el.dataset.v].quests.slice(0, 2).forEach(([title, sub, stat, xp], k) => state.quests.push({ id: `p-${el.dataset.v}-${k}`, title, sub, stat, xp }));
+    save(); toast(`${PATHS[el.dataset.v].name} choisie. Tes quêtes de voie sont mises à jour.`); render();
+  },
   coachmode(el) { ui.coachMode = el.dataset.v; ui.coachError = ""; render(); },
   libtab(el) {
     ui.libTab = el.dataset.v;
