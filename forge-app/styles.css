@@ -914,3 +914,47 @@ img.logo { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0
 .w-cta { padding: 15px; }
 .mc-seal { position: absolute; right: 18px; bottom: -14px; z-index: 3; }
 .mc-seal .wax { position: static; display: block; }
+.snd-fab { position: absolute; z-index: 5; top: calc(var(--safe-t) + 12px); right: 14px; width: 40px; height: 40px; border-radius: 50%; font-size: 18px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); backdrop-filter: blur(6px); }
+
+/* ----- Cases de manga ----- */
+.mpanel { position: relative; margin: 0 0 18px; height: 150px; overflow: hidden; background: var(--paper); border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ember); animation: panel-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+.mpanel.tilt-l { transform: rotate(-1.2deg); } .mpanel.tilt-r { transform: rotate(1deg); }
+@keyframes panel-pop { from { transform: scale(.85) rotate(-4deg); opacity: 0; } }
+.mpanel img { width: 100%; height: 100%; object-fit: cover; display: block; mix-blend-mode: multiply; }
+.mpanel.color { background: #000; } .mpanel.color img { mix-blend-mode: normal; }
+.mp-lines { position: absolute; inset: -40%; pointer-events: none; opacity: .5;
+  background: repeating-conic-gradient(from 0deg at 72% 50%, color-mix(in srgb, var(--ink) 55%, transparent) 0 .6deg, transparent .6deg 6deg);
+  -webkit-mask: radial-gradient(circle at 72% 50%, transparent 30%, #000 70%); mask: radial-gradient(circle at 72% 50%, transparent 30%, #000 70%); }
+.mpanel.color .mp-lines { opacity: .25; }
+.mpanel figcaption { position: absolute; left: 10px; bottom: 10px; max-width: 62%; padding: 6px 10px; background: var(--paper); color: var(--ink);
+  border: 2px solid var(--ink); font: 800 14px/1.2 var(--display); transform: rotate(-1deg); }
+:root[data-theme="matrix"] .mpanel img { filter: hue-rotate(-95deg) saturate(1.2); }
+:root[data-theme="samurai"] .mpanel.color img { filter: hue-rotate(150deg); }
+:root[data-theme="zen"] .mpanel.color img { filter: hue-rotate(-60deg) saturate(.5) brightness(1.2); }
+.center-screen .mpanel { width: 100%; }
+.ink-explain { margin-top: 12px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.ink-explain b { color: var(--text); }
+.media { display: flex; flex-direction: column; gap: 10px; }
+.medium { padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--sc); }
+.medium b { font-family: var(--display); font-size: 16px; }
+.medium small { display: block; color: var(--gold); font: 600 11px var(--mono); margin: 3px 0 6px; }
+.medium p { font-size: 14px; color: var(--muted); line-height: 1.45; }
+.mpanel.arch-panel { height: 290px; width: 100%; margin-top: 18px; }
+.arch-badge { position: absolute; right: 12px; top: 12px; width: 56px; height: 62px; display: grid; place-items: center; font-size: 28px; color: #fff;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: var(--ac); }
+.arch-panel .gogo { top: auto; bottom: 14px; left: auto; right: 16px; color: var(--ink); text-shadow: 2px 2px 0 var(--paper); }
+.archetype .big-title { margin-top: 6px; }
+/* Empreinte qui se forme sous le doigt */
+.print { animation: none; transform: rotate(-12deg); }
+.seal-zone.holding .print { animation: print-grow 1.3s ease-out forwards; }
+@keyframes print-grow { 0% { clip-path: circle(4% at 50% 55%); opacity: .3; } 100% { clip-path: circle(75% at 50% 55%); opacity: 1; } }
+.seal-zone .pr-splat { opacity: 0; transition: opacity .2s; }
+.seal-zone.sealed .print { clip-path: none; opacity: 1; animation: stamp .45s cubic-bezier(.2, 1.6, .4, 1); }
+.seal-zone.sealed .pr-splat { opacity: 1; }
+.print.fade { opacity: 0 !important; transition: opacity .3s; }
+.goal-pin { display: flex; gap: 10px; align-items: center; margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ember) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); }
+.goal-pin .ico { color: var(--gold); font-size: 20px; }
+.goal-pin small { display: block; font: 600 10px var(--mono); letter-spacing: .15em; color: var(--gold); }
+.goal-pin span { font-weight: 600; }

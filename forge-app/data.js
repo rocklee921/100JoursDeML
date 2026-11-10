@@ -45,14 +45,6 @@ const MBTI_TEST = [
   ["SN", "Tu fais plus confiance…", ["S", "Aux faits et à l'expérience"], ["N", "À ton intuition et aux idées"]],
   ["TF", "Pour une décision importante, tu écoutes surtout…", ["T", "La logique"], ["F", "Tes valeurs et l'impact sur les autres"]],
   ["JP", "Ton week-end idéal est…", ["J", "Prévu à l'avance"], ["P", "Improvisé selon l'envie"]],
-  ["EI", "En groupe, tu…", ["E", "Parles facilement, même à des inconnus"], ["I", "Observes avant de te lancer"]],
-  ["SN", "Dans une explication, tu préfères…", ["S", "Des exemples concrets, étape par étape"], ["N", "La vue d'ensemble d'abord"]],
-  ["TF", "Un ami te montre un projet raté. Tu…", ["T", "Lui dis franchement ce qui cloche"], ["F", "Le soutiens d'abord, tu critiques après"]],
-  ["JP", "Face à une échéance, tu…", ["J", "Commences tôt"], ["P", "Fonces au dernier moment"]],
-  ["EI", "Tu réfléchis mieux…", ["E", "En parlant à voix haute"], ["I", "Dans ta tête, avant de parler"]],
-  ["SN", "Tu penses plutôt…", ["S", "Au présent, à ce qui est réel"], ["N", "Au futur, à ce qui pourrait être"]],
-  ["TF", "On te décrit plutôt comme…", ["T", "Juste et direct"], ["F", "Chaleureux et à l'écoute"]],
-  ["JP", "Ta chambre ou ton bureau…", ["J", "Rangés, chaque chose à sa place"], ["P", "Un bazar où toi seul(e) t'y retrouves"]],
 ];
 const MBTI_TYPES = {
   INTJ: "Le Stratège", INTP: "Le Penseur", ENTJ: "Le Chef", ENTP: "L'Inventeur",
@@ -78,7 +70,7 @@ const MBTI_STEPS = [
     sub: "Les 4 lettres comme INTJ ou ENFP. On adapte nos conseils à ta façon de fonctionner.",
     options: [
       { v: "know", icon: "check", label: "Oui, je la connais" },
-      { v: "test", icon: "eye", label: "Non, devine-la avec un mini-test", hint: "12 questions" },
+      { v: "test", icon: "eye", label: "Non, devine-la avec un mini-test", hint: "4 questions" },
       { v: "skip", icon: "rise", label: "Passer" },
     ],
   },
@@ -94,11 +86,76 @@ const MBTI_STEPS = [
     id: "mt" + k,
     type: "single",
     q,
-    sub: `Mini-test de personnalité · ${k + 1}/${MBTI_TEST.length}`,
+    sub: `Mini-test · ${k + 1}/${MBTI_TEST.length}`,
     showIf: (a) => a.mbtiKnow === "test",
     options: [{ v: A[0], label: A[1] }, { v: B[0], label: B[1] }],
   })),
 ];
+
+
+// ---------- Entonnoir : objectif précis par domaine ----------
+const GOALS = {
+  body: { q: "En sport, ton objectif principal ?", o: [
+    ["lose", "Perdre du poids", "Marcher 30 min après un repas", "Le meilleur moment pour brûler", "FOR", 25],
+    ["muscle", "Prendre du muscle", "Manger une portion de protéines à chaque repas", "Œufs, poulet, lentilles, skyr", "FOR", 20],
+    ["cardio", "Gagner en endurance", "20 min de cardio sans t'arrêter", "Course, vélo, corde à sauter", "FOR", 30],
+    ["restart", "Reprendre après une pause", "10 min de mouvement, même léger", "La régularité avant l'intensité", "FOR", 20]] },
+  food: { q: "Côté alimentation, tu veux surtout…", o: [
+    ["sugar", "Réduire le sucre", "Zéro boisson sucrée", "Eau, eau pétillante, thé", "ENE", 20],
+    ["cook", "Cuisiner plus", "Préparer un repas maison", "Simple, mais fait par toi", "ENE", 25],
+    ["regular", "Manger à heures fixes", "3 repas à heure fixe", "Pas de grignotage entre", "DIS", 20],
+    ["energy", "Avoir plus d'énergie", "Un fruit et des légumes à chaque repas", "Ton carburant du jour", "ENE", 20]] },
+  sleep: { q: "Ton souci avec le sommeil ?", o: [
+    ["late", "Je me couche trop tard", "Au lit à heure fixe", "Alarme « coucher » 30 min avant", "ENE", 25],
+    ["fall", "J'ai du mal à m'endormir", "Lecture papier 15 min au lit", "Aucun écran dans la chambre", "ENE", 20],
+    ["wake", "Je suis épuisé au réveil", "10 min de lumière du jour au réveil", "Ton horloge interne se cale", "ENE", 15],
+    ["short", "Je ne dors pas assez", "Viser 7 h 30 de sommeil", "Compte à rebours depuis ton réveil", "ENE", 25]] },
+  mind: { q: "Pour ton mental, tu cherches…", o: [
+    ["calm", "Plus de calme", "Méditer 10 min", "Assis, attention au souffle", "MEN", 20],
+    ["confidence", "Plus de confiance", "Noter 3 choses réussies aujourd'hui", "Ton dossier de preuves", "MEN", 15],
+    ["focus", "Plus de concentration", "Une tâche à la fois pendant 25 min", "Notifications coupées", "MEN", 20],
+    ["joy", "Retrouver le moral", "Faire une chose qui te fait plaisir", "Rien que pour toi, sans culpabilité", "MEN", 15]] },
+  discipline: { q: "Quelle habitude veux-tu ancrer ?", o: [
+    ["morning", "Une routine du matin", "Routine du matin en 3 étapes", "Lit, eau, 5 min de mouvement", "DIS", 20],
+    ["evening", "Une routine du soir", "Préparer demain en 5 min", "Tenue, sac, 3 priorités", "DIS", 15],
+    ["promises", "Tenir mes promesses", "Faire ce que tu as prévu, à l'heure prévue", "Une seule promesse, mais tenue", "DIS", 25],
+    ["order", "Vivre dans l'ordre", "Ranger 10 min", "Un tiroir, une étagère, une pièce", "DIS", 15]] },
+  procrast: { q: "Tu procrastines surtout sur…", o: [
+    ["study", "Les révisions ou le travail", "25 min de travail sans téléphone", "Minuteur lancé, téléphone loin", "DIS", 30],
+    ["admin", "L'administratif", "Une tâche administrative par jour", "Mail, papier, rendez-vous", "DIS", 20],
+    ["project", "Un projet perso", "Avancer 20 min sur ton projet", "Même mal, même peu", "COU", 30],
+    ["sport", "Le sport", "Mettre ta tenue de sport", "C'est le plus dur. Le reste suit.", "FOR", 15]] },
+  work: { q: "Pour tes études ou ton travail, tu vises…", o: [
+    ["exam", "Réussir un examen", "Une fiche de révision par jour", "Écrite à la main", "SAV", 30],
+    ["promo", "Une promotion", "Une action qui se voit au travail", "Proposer, finir, améliorer", "DIS", 25],
+    ["change", "Changer de métier", "30 min sur ta reconversion", "Formation, contacts, CV", "COU", 30],
+    ["business", "Lancer mon entreprise", "Une action concrète pour ton projet", "Un client, un test, une page", "COU", 35]] },
+  learn: { q: "Tu veux apprendre quoi ?", o: [
+    ["lang", "Une langue", "15 min de langue", "Appli, podcast ou cours", "SAV", 25],
+    ["code", "Le code ou l'informatique", "30 min de code", "Un petit exercice par jour", "SAV", 30],
+    ["music", "Un instrument", "15 min d'instrument", "Même les gammes comptent", "SAV", 25],
+    ["read", "Lire plus", "Lire 15 pages", "Un livre papier ou liseuse", "SAV", 25]] },
+  culture: { q: "Côté culture et intelligence…", o: [
+    ["general", "Culture générale", "Apprendre un fait et le raconter", "À quelqu'un, le jour même", "SAV", 15],
+    ["logic", "Logique et stratégie", "15 min d'échecs ou d'énigmes", "Ton cerveau est un muscle", "SAV", 20],
+    ["art", "Art et cinéma", "Découvrir une œuvre", "Film, album, expo, documentaire", "SAV", 20],
+    ["debate", "Mieux argumenter", "Écrire ton avis sur un sujet en 5 phrases", "Clair, structuré, honnête", "SAV", 20]] },
+  social: { q: "Côté relations, ton objectif ?", o: [
+    ["shy", "Être moins timide", "Parler à un inconnu", "Une question, un compliment, un merci", "COU", 25],
+    ["friends", "Me faire des amis", "Proposer une activité à quelqu'un", "Café, sport, sortie", "SOC", 25],
+    ["family", "Me rapprocher de ma famille", "Appeler un proche", "Pas un message : un vrai appel", "SOC", 20],
+    ["love", "Ma vie de couple", "Un geste attentionné pour ton ou ta partenaire", "Petit, mais sincère", "SOC", 20]] },
+  money: { q: "Pour ton argent, tu veux…", o: [
+    ["save", "Épargner", "Mettre de côté, même 2 €", "Le geste compte plus que la somme", "DIS", 20],
+    ["debt", "Rembourser des dettes", "Zéro dépense superflue", "Seulement l'essentiel aujourd'hui", "DIS", 25],
+    ["earn", "Gagner plus", "30 min sur un revenu en plus", "Compétence, projet, side business", "COU", 30],
+    ["track", "Savoir où va mon argent", "Noter toutes tes dépenses", "Chaque euro compte", "SAV", 15]] },
+};
+const GOAL_STEPS = Object.entries(GOALS).map(([dom, g]) => ({
+  id: "goal_" + dom, type: "single", q: g.q, sub: "Plus c'est précis, plus ton programme sera juste.",
+  showIf: (a) => (a.focus || []).includes(dom),
+  options: g.o.map(([v, label]) => ({ v, label })),
+}));
 
 // Questionnaire d'accueil. `showIf` permet d'adapter le parcours aux réponses.
 const QUIZ = [
@@ -154,10 +211,10 @@ const QUIZ = [
     q: "Choisis ton interface.",
     sub: "Tu pourras la changer à tout moment dans ton profil.",
     options: [
-      { v: "forge", icon: "rise", label: "Système — bleu électrique", hint: "style manga" },
-      { v: "matrix", icon: "terminal", label: "Matrice — pluie de code", hint: "style hacker" },
-      { v: "zen", icon: "lotus", label: "Zen — calme et yoga", hint: "style doux" },
-      { v: "samurai", icon: "blade", label: "Samouraï — encre et sang", hint: "style bushidō" },
+      { v: "forge", icon: "rise", label: "Système, bleu électrique", hint: "style manga" },
+      { v: "matrix", icon: "terminal", label: "Matrice, pluie de code", hint: "style hacker" },
+      { v: "zen", icon: "lotus", label: "Zen, calme et yoga", hint: "style doux" },
+      { v: "samurai", icon: "blade", label: "Samouraï, encre et sang", hint: "style bushidō" },
     ],
   },
   {
@@ -176,8 +233,7 @@ const QUIZ = [
     id: "focus",
     type: "multi",
     q: "Sur quoi veux-tu progresser ?",
-    sub: "Coche tout ce qui compte pour toi (jusqu'à 6).",
-    max: 6,
+    sub: "Coche tout ce qui compte pour toi, autant que tu veux.",
     options: [
       { v: "body", icon: "body", label: "Sport et forme physique" },
       { v: "food", icon: "food", label: "Alimentation" },
@@ -272,18 +328,6 @@ const QUIZ = [
     ],
   },
   {
-    id: "proud",
-    type: "single",
-    q: "La dernière fois que tu as été fier/fière de toi ?",
-    options: [
-      { v: "today", label: "Aujourd'hui" },
-      { v: "days", label: "Cette semaine" },
-      { v: "weeks", label: "Il y a quelques semaines" },
-      { v: "months", label: "Il y a des mois" },
-      { v: "forgot", label: "Je ne m'en souviens plus" },
-    ],
-  },
-  {
     id: "steps",
     type: "single",
     q: "Combien de pas fais-tu par jour, environ ?",
@@ -357,7 +401,7 @@ const QUIZ = [
     id: "quit",
     type: "multi",
     q: "Veux-tu te libérer de l'une de ces habitudes ?",
-    sub: "Facultatif — sélectionne tout ce qui s'applique.",
+    sub: "Facultatif : sélectionne tout ce qui s'applique.",
     exclusive: "none",
     options: [
       { v: "smoke", label: "Tabac ou vape" },
@@ -367,6 +411,27 @@ const QUIZ = [
       { v: "junk", label: "Malbouffe et sucre" },
       { v: "none", label: "Aucune" },
     ],
+  },
+  ...GOAL_STEPS,
+  {
+    id: "time",
+    type: "single",
+    q: "Combien de temps peux-tu y consacrer par jour ?",
+    sub: "Sois réaliste. Un petit programme tenu vaut mieux qu'un grand abandonné.",
+    options: [
+      { v: 15, label: "15 minutes" },
+      { v: 30, label: "30 minutes" },
+      { v: 60, label: "1 heure" },
+      { v: 120, label: "2 heures ou plus" },
+    ],
+  },
+  {
+    id: "mainGoal",
+    type: "text",
+    q: "Dans 100 jours, tu veux être fier de quoi ?",
+    sub: "Une phrase. C'est ton objectif principal, on te le rappellera.",
+    placeholder: "Ton objectif principal…",
+    suggestions: ["Avoir perdu 5 kg", "Avoir réussi mes examens", "Être plus discipliné", "Avoir lancé mon projet", "Me sentir bien dans ma tête", "Dormir 8 h par nuit"],
   },
   ...MBTI_STEPS,
   {
@@ -381,27 +446,6 @@ const QUIZ = [
       { v: "07:00", label: "7h00" },
       { v: "07:30", label: "7h30" },
       { v: "08:00", label: "8h00" },
-    ],
-  },
-  {
-    id: "confidence",
-    type: "slider",
-    q: "Tiendrais-tu une routine 7 jours d'affilée ?",
-    sub: "Sois honnête, ça sert à doser ton programme.",
-    min: 1,
-    max: 10,
-    left: "Aucune chance",
-    right: "Sans problème",
-  },
-  {
-    id: "intensity",
-    type: "single",
-    q: "Quel niveau de difficulté ?",
-    options: [
-      { v: 1, label: "Doux — je reprends en douceur", hint: "3-4 quêtes / jour" },
-      { v: 2, label: "Progressif — je monte en puissance", hint: "5 quêtes / jour" },
-      { v: 3, label: "Exigeant — pousse-moi", hint: "6-7 quêtes / jour" },
-      { v: 4, label: "Mode éveil — le maximum", hint: "8 quêtes / jour" },
     ],
   },
 ];
@@ -724,3 +768,23 @@ const EVENTS = [
   { name: "Gratitude", ico: "light", quests: [["Noter 3 gratitudes", "Même les plus petites", "MEN"], ["Remercier quelqu'un", "De vive voix ou par écrit", "SOC"]] },
   { name: "Bilan du héros", ico: "trophy", quests: [["Écrire une leçon de l'année", "Ce que tu ne veux plus jamais oublier", "MEN"], ["Un acte de générosité", "Du temps, un don, un service", "SOC"]] },
 ];
+
+// Films et séries conseillés (avec la raison du conseil).
+const MEDIA = [
+  { kind: "Film", title: "Rocky", year: 1976, stat: "DIS", why: "Courir à l'aube, monter les marches : la discipline avant la gloire." },
+  { kind: "Film", title: "À la recherche du bonheur", year: 2006, stat: "COU", why: "Un père qui ne lâche rien, même à la rue. Une leçon de persévérance." },
+  { kind: "Film", title: "Whiplash", year: 2014, stat: "DIS", why: "Le prix de l'excellence, et ses limites. Ça donne envie de bosser." },
+  { kind: "Film", title: "Le Cercle des poètes disparus", year: 1989, stat: "SAV", why: "Carpe diem : penser par soi-même et oser sa vie." },
+  { kind: "Film", title: "Into the Wild", year: 2007, stat: "MEN", why: "Le sens, la liberté, et ce qui compte vraiment." },
+  { kind: "Film", title: "Soul", year: 2020, stat: "FOI", why: "Ce qui donne du sens à une vie n'est pas toujours ce qu'on croit." },
+  { kind: "Film", title: "Free Solo", year: 2018, stat: "COU", why: "Documentaire : maîtriser sa peur, une prise après l'autre." },
+  { kind: "Film", title: "Karaté Kid", year: 1984, stat: "DIS", why: "Cirer, poncer : les petites répétitions construisent le maître." },
+  { kind: "Série", title: "Haikyū!!", year: 2014, stat: "SOC", why: "Anime : progresser en équipe, transformer ses défauts en forces." },
+  { kind: "Série", title: "Vinland Saga", year: 2019, stat: "MEN", why: "Anime : de la colère à la paix intérieure. Un vrai chemin de vie." },
+  { kind: "Série", title: "Blue Lock", year: 2022, stat: "COU", why: "Anime : l'ego, la confiance et l'envie de devenir le meilleur." },
+  { kind: "Série", title: "Le Jeu de la dame", year: 2020, stat: "SAV", why: "Une prodige des échecs face à ses démons. Travail et talent." },
+  { kind: "Série", title: "Ted Lasso", year: 2020, stat: "SOC", why: "La gentillesse comme superpouvoir. Fait du bien au moral." },
+  { kind: "Série", title: "Hajime no Ippo", year: 2000, stat: "FOR", why: "Anime : un garçon timide devient boxeur à force d'entraînement." },
+];
+// Livre conseillé selon le point faible.
+const BOOK_FOR = { FOR: "goggins", MEN: "mindset", ENE: "why", SOC: "carnegie", SAV: "deepwork", COU: "goggins", FOI: "frankl", DIS: "atomic" };

@@ -89,7 +89,7 @@ const isSenior = (a) => ["50", "65"].includes(a.age);
 const fieldOf = (a) => (a.field || "").trim().slice(0, 30);
 
 function buildProgram(a) {
-  const i = Number(a.intensity) || 2;
+  const i = Number(a.intensity) || ({ 15: 1, 30: 2, 60: 3, 120: 4 }[a.time] || 2);
   const target = [4, 5, 7, 8][i - 1];
   const quests = [];
   const add = (q) => {
@@ -102,6 +102,10 @@ function buildProgram(a) {
 
   add({ id: "wake", title: `Se lever à ${(a.wake || "07:00").replace(":", "h").replace(/^0/, "")}`, sub: "Debout au premier réveil", stat: "DIS", xp: 20 });
   (a.quit || []).filter((q) => q !== "none").forEach(fromSpecial);
+  Object.entries(GOALS).filter(([dom]) => (a.focus || []).slice(0, 4).includes(dom)).forEach(([dom, g]) => {
+    const pickd = (a.focus || []).includes(dom) && g.o.find((o) => o[0] === a["goal_" + dom]);
+    if (pickd) add({ id: "g-" + dom, title: pickd[2], sub: pickd[3], stat: pickd[4], xp: Math.round(pickd[5] * (0.8 + i * 0.1)) });
+  });
   all(a.enemy).forEach(fromSpecial);
   all(a.mindIssue).forEach(fromSpecial);
   if ((a.focus || []).includes("faith")) {
@@ -162,6 +166,8 @@ function buildProgram(a) {
     }
     if (!added) break;
   }
+  // Programme tenable : on garde les quêtes les plus importantes.
+  if (quests.length > target + 2) quests.splice(target + 2);
   // Adaptation à partir de 50 ans : volumes plus doux
   if (senior) quests.forEach((q) => {
     if (q.id === "pushups") q.title = q.title.replace(/^\d+/, (m) => Math.max(5, Math.round(m / 2))) + " (au mur si besoin)";
@@ -279,12 +285,15 @@ function firstActions(a, weak) {
     MEN: ["3 minutes de respiration au réveil.", "Inspire 4 s, expire 6 s. Avant de toucher ton téléphone."],
     ENE: ["Un grand verre d'eau au réveil.", "Puis 5 minutes à la lumière du jour. Ton corps se recalibre."],
     SOC: ["Envoie un message à quelqu'un.", "Pas un « ça va ? » : une vraie question, ou un souvenir partagé."],
-    SAV: ["Lis 5 pages au lieu de scroller.", "Le livre posé sur ton oreiller, pour ne pas l'oublier."],
+    SAV: [`Lis 5 pages de « ${BOOKS.find((b) => b.id === BOOK_FOR.SAV).title} ».`, `De ${BOOKS.find((b) => b.id === BOOK_FOR.SAV).author}. Le livre posé sur ton oreiller, pour ne pas l'oublier.`],
     COU: ["Fais UNE chose que tu repousses par peur.", "Un message, une question, une inscription. 2 minutes de courage suffisent."],
     FOI: ["Un rendez-vous spirituel au réveil.", "Avant le téléphone : prière, lecture ou silence. 5 minutes."],
     DIS: ["Fais ton lit en te levant.", "30 secondes. Ta première victoire de la journée, avant même le café."],
   }[weak];
-  const week = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
+  const bk = BOOKS.find((b) => b.id === BOOK_FOR[weak]) || BOOKS[0];
+  const mv = MEDIA.find((m) => m.stat === weak) || MEDIA[0];
+  const week = [`Lis « ${bk.title} », regarde « ${mv.title} ».`, `${bk.author} pour le livre. ${mv.kind} (${mv.year}) : ${mv.why}`];
+  const week0 = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
   return [["Ce soir", tonight], ["Demain", tomorrow], ["Cette semaine", week]];
 }
 
@@ -694,6 +703,7 @@ function mangaCard({ kicker, title, text, link, linkAction, seal = true, hero = 
 
 function viewWelcome() {
   return `<section class="screen welcome">
+    <button class="snd-fab" data-action="sound" aria-label="Activer ou couper le son">${typeof snd !== "undefined" && (snd.prefs.music || snd.prefs.sfx) ? "🔊" : "🔇"}</button>
     <div class="welcome-art"><img src="assets/welcome-scene.webp" alt="Soul Leveling : un chasseur face aux rangs E à S" fetchpriority="high">${embers()}</div>
     <div class="welcome-body frame">
       <span class="w-kick">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS ◆</span>
@@ -703,6 +713,22 @@ function viewWelcome() {
       <button class="link" data-action="how">Pourquoi ${CHALLENGE_DAYS} jours ?</button>
     </div>
   </section>`;
+}
+
+// Case de manga en tête d'écran : image, trame, lignes de vitesse, encart narratif.
+const PANELS = [
+  { img: "hero", pos: "50% 18%", text: "Le Système t'a choisi." },
+  { img: "welcome-scene", pos: "50% 35%", text: "Chaque rang se gagne." },
+  { img: "hero-soul", pos: "60% 10%", text: "Ton âme peut grandir." },
+  { img: "welcome-scene", pos: "50% 72%", text: "Le chemin commence ici." },
+];
+function mangaPanel(k, label) {
+  const p = PANELS[k % PANELS.length];
+  return `<figure class="mpanel ${p.img === "welcome-scene" ? "color" : ""} ${k % 2 ? "tilt-r" : "tilt-l"}">
+    <img src="assets/${p.img}.webp" alt="" style="object-position:${p.pos}">
+    <div class="mp-lines"></div>
+    <figcaption>${esc(label || p.text)}</figcaption>
+  </figure>`;
 }
 
 function quizSteps() {
@@ -756,6 +782,7 @@ function viewQuiz() {
       <div class="progress"><div style="width:${Math.max(pct, 4)}%"></div></div>
       <span class="step-count">${ui.quiz.step + 1}/${steps.length}</span>
     </div>
+    ${mangaPanel(ui.quiz.step)}
     <div class="sys-tag">[SYSTÈME] ÉVALUATION</div>
     <h2>${esc(s.q)}</h2>
     ${s.sub || s.subExtra ? `<p class="sub">${s.sub ? esc(s.sub) : ""} ${s.type === "multi" && s.max ? s.subExtra || "" : ""}</p>` : ""}
@@ -814,6 +841,7 @@ function viewBaseline() {
   const stepsMsg = steps < 3000 ? "On part de bas. Chaque pas comptera double." : steps < 6000 ? "Une base honnête. On va la faire grimper." : "Belle base. On va s'en servir.";
   const sleepMsg = sleep < 6 ? "C'est ton chantier n°1 : sans sommeil, aucune habitude ne tient." : sleep > 8.5 ? "Tu dors beaucoup. On vérifiera que c'est du repos, pas de la fuite." : "Une bonne base pour construire.";
   return `<section class="screen center-screen">
+    ${mangaPanel(2, "Voici d'où part ton histoire.")}
     <span class="pill">◆ [SYSTÈME] POINT DE DÉPART</span>
     <h2 class="big-title">Ton point de départ.</h2>
     <p class="sub">Pas besoin d'être prêt. Il suffit de savoir d'où tu pars.</p>
@@ -842,7 +870,7 @@ function viewSummary() {
     ? `Je me lève vers ${wake} et je sais tenir une routine.`
     : `Je vise un lever à ${wake}, mais tenir dans la durée, c'est dur.`;
   const cards = [
-    ["target", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
+    ["target", "Ce que tu veux", (a.mainGoal && a.mainGoal.trim() ? `Dans 100 jours : ${a.mainGoal.trim()}.` : FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline), true],
     ["timer", "Ton rythme", rhythm],
     ["bolt", "Ton frein", all(a.enemy).map((e) => ENEMY_SENTENCE[e]).filter(Boolean).join(" ") || ENEMY_SENTENCE.procrast],
   ];
@@ -856,7 +884,7 @@ function viewSummary() {
     <div class="sys-tag">ACTIONS DU JOUR 1</div>
     <div class="actions">${firstActions(a, weak)
       .map(([when, [t, d]], k) => `<div class="action ${k === 0 ? "hot" : ""}" style="animation-delay:${300 + k * 120}ms">
-        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>${k === 0 ? inkPad("task", "Écris-le ici avec ton doigt", 150) : ""}`)
+        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>${k === 0 ? `<p class="ink-explain">${ico("pen")} <b>Ton engagement</b> (facultatif) : écris « Je le fais » ou ton prénom avec ton doigt. Écrire une promesse à la main aide à la tenir.</p>${inkPad("task", "Je le fais ce soir.", 120)}` : ""}`)
       .join("")}</div>
     ${goBtn("archetype")}
   </section>`;
@@ -899,12 +927,13 @@ function viewArchetype() {
   return `<section class="screen center-screen archetype" style="--ac:${ar.color}">
     ${embers()}
     <span class="pill">◆ TON ARCHÉTYPE</span>
-    <div class="arch-emblem"><div class="speedlines"></div>
-      <svg class="arch-runes" viewBox="0 0 200 200"><defs><path id="rc" d="M100 100m-82 0a82 82 0 1 1 164 0a82 82 0 1 1-164 0"/></defs>
-        <circle cx="100" cy="100" r="92"/><circle cx="100" cy="100" r="72"/>
-        <text><textPath href="#rc">ステータス · 覚醒 · SOUL · LEVEL · UP · 覚醒 · ステータス · SYSTEM ·</textPath></text></svg>
-      <div class="arch-hex">${ico(ar.ico)}</div>
-      <span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span></div>
+    <figure class="mpanel arch-panel tilt-l">
+      <img src="assets/${ar === ARCHETYPES.PHOENIX || ar === ARCHETYPES.FOI ? "hero-soul" : "hero"}.webp" alt="" style="object-position:55% 12%">
+      <div class="mp-lines"></div>
+      <span class="arch-badge" style="--ac:${ar.color}">${ico(ar.ico)}</span>
+      <span class="gogo l">ゴ<br>ゴ<br>ゴ</span>
+      <figcaption>Éveil de ton archétype…</figcaption>
+    </figure>
     <h2 class="big-title">${ar.name}</h2>
     <p class="sub">${esc(ar.text)}</p>
     ${mbtiCard(ui.quiz.answers)}
@@ -1014,6 +1043,10 @@ function setupPact() {
     }
     e.preventDefault();
     zone.classList.add("holding");
+    zone.querySelectorAll(".print").forEach((x) => x.remove());
+    const seed = 1 + Math.floor(Math.random() * 9000);
+    zone.insertAdjacentHTML("beforeend", fingerprintSvg(seed));
+    zone.dataset.seed = seed;
     prog.style.transition = "stroke-dashoffset 1.3s linear";
     prog.style.strokeDashoffset = "0";
     vibrate(20);
@@ -1021,9 +1054,7 @@ function setupPact() {
       sealed = true;
       zone.classList.remove("holding");
       zone.classList.add("sealed");
-      const seed = 1 + Math.floor(Math.random() * 9000);
-      zone.insertAdjacentHTML("beforeend", fingerprintSvg(seed));
-      ui.quiz.answers.seal = seed;
+      ui.quiz.answers.seal = Number(zone.dataset.seed);
       document.getElementById("seal-hint").textContent = "";
       step.innerHTML = "<b>Pacte scellé.</b> Il n'y a plus de retour en arrière.";
       document.querySelector(".pact-paper").classList.add("sealed");
@@ -1036,6 +1067,8 @@ function setupPact() {
     if (sealed) return;
     clearTimeout(timer);
     zone.classList.remove("holding");
+    const pr = zone.querySelector(".print");
+    if (pr) { pr.classList.add("fade"); setTimeout(() => pr.remove(), 300); }
     prog.style.transition = "stroke-dashoffset .25s";
     prog.style.strokeDashoffset = "100";
   };
@@ -1070,8 +1103,7 @@ function setupHold() {
 
 function viewHowto() {
   return `<section class="screen center-screen howto">
-    <div class="scene-banner">${scene({ signs: ["Sem. 1", "Sem. 4", "J" + CHALLENGE_DAYS] })}${embers()}
-      <div class="banner-emblem">${emblem(RANKS[0], 84)}<i class="up">${ico("rise")}</i>${emblem(RANKS[4], 84)}</div></div>
+    ${mangaPanel(1, "Ta vie devient le jeu.")}
     <div class="sys-tag">[SYSTÈME] LES RÈGLES</div>
     <h2 class="big-title">Ta vie devient le jeu.</h2>
     <div class="how-steps frame">
@@ -1098,7 +1130,7 @@ function viewReveal() {
   const enemy = all(a.enemy).map((e) => enemyNames[e]).filter(Boolean).join(", ") || "—";
   const focus = QUIZ.find((x) => x.id === "focus").options.filter((o) => (a.focus || []).includes(o.v)).map((o) => o.label).join(", ") || "—";
   return `<section class="screen reveal">
-    <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
+    ${mangaPanel(3, "Semaine 1. Le chemin commence.")}
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
     ${mangaCard({ kicker: "Ton pacte t'attend", title: `${esc(name)}, ton histoire commence.`, text: "Chaque quête est une case de ton manga. À la fin de la semaine, tu ne seras déjà plus le même personnage.", hero: "hero-soul" })}
@@ -1168,6 +1200,7 @@ function viewQuests() {
       <div class="xpbar" title="Niveau ${L.lvl}"><div style="width:${(L.cur / L.need) * 100}%"></div></div>
       <div class="xpbar-label"><span>Niv. ${L.lvl}</span><span>${L.cur} / ${L.need} XP</span></div>
     </header>
+    ${state.answers.mainGoal ? `<div class="goal-pin">${ico("target")}<span><small>TON OBJECTIF</small>${esc(state.answers.mainGoal)}</span></div>` : ""}
     ${eventCard()}
     <div class="seg">
       <button class="${ui.filter === "todo" ? "on" : ""}" data-action="filter" data-v="todo">À faire <i>${todo.length}</i></button>
@@ -1386,9 +1419,17 @@ function viewLibrary() {
       ${read.has(b.id) ? `<button class="btn ghost" data-action="book" data-v="">✓ Déjà lu · retour</button>` : `<button class="btn primary" data-action="bookdone" data-v="${b.id}">J'ai lu ces idées (+20 XP)</button>`}
     </div>`;
   }
+  const tabs = `<div class="seg wide">${[["books", "Livres"], ["Film", "Films"], ["Série", "Séries"]].map(([k, n]) => `<button class="${(ui.libTab || "books") === k ? "on" : ""}" data-action="libtab" data-v="${k}">${n}</button>`).join("")}</div>`;
+  if (ui.libTab && ui.libTab !== "books") {
+    const weak = weakestAxis(profileScores(state.answers));
+    const list = MEDIA.filter((m) => m.kind === ui.libTab).sort((x, y) => (y.stat === weak) - (x.stat === weak));
+    return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] À REGARDER</div><h2 class="big-title">Nourris ton mental.</h2>${tabs}
+      <div class="media">${list.map((m) => `<div class="medium" style="--sc:${STATS[m.stat].color}">
+        <div><b>${esc(m.title)}</b><small>${m.kind} · ${m.year} · ${STATS[m.stat].label}${m.stat === weak ? " · conseillé pour toi" : ""}</small><p>${esc(m.why)}</p></div></div>`).join("")}</div></div>`;
+  }
   return `<div class="tool-view left">
     <div class="sys-tag">[SYSTÈME] BIBLIOTHÈQUE</div>
-    <h2 class="big-title">3 idées, 3 minutes.</h2>
+    <h2 class="big-title">3 idées, 3 minutes.</h2>${tabs}
     <div class="books">${BOOKS.map((b) => `<button class="book ${read.has(b.id) ? "read" : ""}" data-action="book" data-v="${b.id}" style="--sc:${STATS[b.stat].color}">
       <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].label}</em></button>`).join("")}</div>
   </div>`;
@@ -1535,6 +1576,8 @@ function viewProfile() {
       <h3>Réglages</h3>
       <div class="theme-pick"><span>Interface</span><div class="seg wide">${Object.entries(THEMES).map(([k, n]) => `<button class="${(state.theme || "forge") === k ? "on" : ""}" data-action="theme" data-v="${k}">${n}</button>`).join("")}</div></div>
       ${NATIVE ? `<button class="row-btn" data-action="reminders">${ico("bolt")} Rappels quotidiens : ${state.reminders && state.reminders.on ? "activés" : "désactivés"}</button>` : ""}
+      ${typeof snd !== "undefined" ? `<button class="row-btn" data-action="sound" data-v="music">${ico("wind")} Musique d'ambiance : ${snd.prefs.music ? "activée" : "coupée"}</button>
+      <button class="row-btn" data-action="sound" data-v="sfx">${ico("bolt")} Bruitages : ${snd.prefs.sfx ? "activés" : "coupés"}</button>` : ""}
       <a class="row-btn" href="privacy.html" target="_blank" rel="noopener">${ico("shield")} Politique de confidentialité</a>
       ${cloud.user ? `<button class="row-btn danger" data-action="delaccount">${ico("lock")} Supprimer mon compte</button>` : ""}
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
@@ -1575,7 +1618,7 @@ const HELP_HTML = `<div class="sys-tag">[SYSTÈME] TU N'ES PAS SEUL(E)</div>
   <h2>Parler à quelqu'un, maintenant</h2>
   <p class="sub">Si tu traverses un moment très difficile, des personnes formées sont là pour t'écouter, gratuitement, 24h/24.</p>
   <a class="help-line" href="tel:3114"><b>3114</b><span>Numéro national de prévention du suicide</span></a>
-  <a class="help-line" href="tel:0972394050"><b>09 72 39 40 50</b><span>SOS Amitié — écoute anonyme</span></a>
+  <a class="help-line" href="tel:0972394050"><b>09 72 39 40 50</b><span>SOS Amitié, écoute anonyme</span></a>
   <a class="help-line" href="tel:112"><b>112</b><span>Urgences</span></a>
   <p class="sub small">Soul Leveling est un outil de motivation, pas un soin. Il ne remplace pas un professionnel de santé.</p>`;
 
@@ -1959,6 +2002,11 @@ const actions = {
   },
   book(el) {
     ui.book = el.dataset.v || null;
+    render();
+  },
+  libtab(el) {
+    ui.libTab = el.dataset.v;
+    ui.book = null;
     render();
   },
   bookdone(el) {
