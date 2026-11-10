@@ -39,7 +39,7 @@ function supabaseApi(sb) {
     async signIn(email, password) { return fail(await sb.auth.signInWithPassword({ email, password })).user; },
     async signOut() { await sb.auth.signOut(); },
     async generateHero(body) {
-      const r = await sb.functions.invoke("generate-hero", { body });
+      const r = await sb.functions.invoke((window.SOUL_CONFIG || {}).heroFunction || "generate-hero", { body });
       if (r.error) {
         let msg = "La génération a échoué. Réessaie dans un instant.";
         try { const j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch {}
