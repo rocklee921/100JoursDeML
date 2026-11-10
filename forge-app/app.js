@@ -89,7 +89,7 @@ const isSenior = (a) => ["50", "65"].includes(a.age);
 const fieldOf = (a) => (a.field || "").trim().slice(0, 30);
 
 function buildProgram(a) {
-  const i = Number(a.intensity) || 2;
+  const i = Number(a.intensity) || ({ 15: 1, 30: 2, 60: 3, 120: 4 }[a.time] || 2);
   const target = [4, 5, 7, 8][i - 1];
   const quests = [];
   const add = (q) => {
@@ -102,6 +102,11 @@ function buildProgram(a) {
 
   add({ id: "wake", title: `Se lever à ${(a.wake || "07:00").replace(":", "h").replace(/^0/, "")}`, sub: "Debout au premier réveil", stat: "DIS", xp: 20 });
   (a.quit || []).filter((q) => q !== "none").forEach(fromSpecial);
+  Object.entries(GOALS).filter(([dom]) => (a.focus || []).slice(0, 4).includes(dom)).forEach(([dom, g]) => {
+    const pickd = (a.focus || []).includes(dom) && g.o.find((o) => o[0] === a["goal_" + dom]);
+    if (pickd) add({ id: "g-" + dom, title: pickd[2], sub: pickd[3], stat: pickd[4], xp: Math.round(pickd[5] * (0.8 + i * 0.1)) });
+  });
+  if (PATHS[a.path]) PATHS[a.path].quests.slice(0, i >= 3 ? 2 : 1).forEach(([title, sub, stat, xp], k) => add({ id: `p-${a.path}-${k}`, title, sub, stat, xp }));
   all(a.enemy).forEach(fromSpecial);
   all(a.mindIssue).forEach(fromSpecial);
   if ((a.focus || []).includes("faith")) {
@@ -162,6 +167,8 @@ function buildProgram(a) {
     }
     if (!added) break;
   }
+  // Programme tenable : on garde les quêtes les plus importantes.
+  if (quests.length > target + 2) quests.splice(target + 2);
   // Adaptation à partir de 50 ans : volumes plus doux
   if (senior) quests.forEach((q) => {
     if (q.id === "pushups") q.title = q.title.replace(/^\d+/, (m) => Math.max(5, Math.round(m / 2))) + " (au mur si besoin)";
@@ -227,12 +234,19 @@ function mbtiOf(a) {
   MBTI_TEST.forEach((_, k) => { if (a["mt" + k]) votes[a["mt" + k]] = (votes[a["mt" + k]] || 0) + 1; });
   return ["EI", "SN", "TF", "JP"].map(([x, y]) => ((votes[x] || 0) >= (votes[y] || 0) ? x : y)).join("");
 }
+function recommendedPath(a) {
+  const t = mbtiOf(a);
+  return t && MBTI_TRAITS[t] ? MBTI_TRAITS[t][2] : null;
+}
+
 function mbtiCard(a) {
   const t = mbtiOf(a);
   if (!t) return "";
   return `<div class="mbti-card">
     <div class="mbti-head"><span class="mbti-type">${t}</span><div><small>TA PERSONNALITÉ</small><b>${MBTI_TYPES[t]}</b></div></div>
     <ul>${[t[0], t[3]].map((l) => `<li>${esc(MBTI_TIPS[l])}</li>`).join("")}</ul>
+    ${MBTI_TRAITS[t] ? `<div class="sw-row"><div><small>FORCES</small>${MBTI_TRAITS[t][0].map((x) => `<span class="pill-s up">${esc(x)}</span>`).join("")}</div>
+      <div><small>À TRAVAILLER</small>${MBTI_TRAITS[t][1].map((x) => `<span class="pill-s down">${esc(x)}</span>`).join("")}</div></div>` : ""}
     ${a.mbtiKnow === "test" ? `<p class="mbti-note">Résultat indicatif d'un mini-test, pas un diagnostic.</p>` : ""}
   </div>`;
 }
@@ -279,12 +293,15 @@ function firstActions(a, weak) {
     MEN: ["3 minutes de respiration au réveil.", "Inspire 4 s, expire 6 s. Avant de toucher ton téléphone."],
     ENE: ["Un grand verre d'eau au réveil.", "Puis 5 minutes à la lumière du jour. Ton corps se recalibre."],
     SOC: ["Envoie un message à quelqu'un.", "Pas un « ça va ? » : une vraie question, ou un souvenir partagé."],
-    SAV: ["Lis 5 pages au lieu de scroller.", "Le livre posé sur ton oreiller, pour ne pas l'oublier."],
+    SAV: [`Lis 5 pages de « ${BOOKS.find((b) => b.id === BOOK_FOR.SAV).title} ».`, `De ${BOOKS.find((b) => b.id === BOOK_FOR.SAV).author}. Le livre posé sur ton oreiller, pour ne pas l'oublier.`],
     COU: ["Fais UNE chose que tu repousses par peur.", "Un message, une question, une inscription. 2 minutes de courage suffisent."],
     FOI: ["Un rendez-vous spirituel au réveil.", "Avant le téléphone : prière, lecture ou silence. 5 minutes."],
     DIS: ["Fais ton lit en te levant.", "30 secondes. Ta première victoire de la journée, avant même le café."],
   }[weak];
-  const week = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
+  const bk = BOOKS.find((b) => b.id === BOOK_FOR[weak]) || BOOKS[0];
+  const mv = MEDIA.find((m) => m.stat === weak) || MEDIA[0];
+  const week = [`Lis « ${bk.title} », regarde « ${mv.title} ».`, `${bk.author} pour le livre. ${mv.kind} (${mv.year}) : ${mv.why}`];
+  const week0 = ["Choisis ton heure fixe.", `Même heure, même endroit, chaque jour pour ta quête « ${STATS[weak].label} ». L'habitude se cale sur le signal.`];
   return [["Ce soir", tonight], ["Demain", tomorrow], ["Cette semaine", week]];
 }
 
@@ -694,6 +711,7 @@ function mangaCard({ kicker, title, text, link, linkAction, seal = true, hero = 
 
 function viewWelcome() {
   return `<section class="screen welcome">
+    <button class="snd-fab" data-action="sound" aria-label="Activer ou couper le son">${typeof snd !== "undefined" && (snd.prefs.music || snd.prefs.sfx) ? "🔊" : "🔇"}</button>
     <div class="welcome-art"><img src="assets/welcome-scene.webp" alt="Soul Leveling : un chasseur face aux rangs E à S" fetchpriority="high">${embers()}</div>
     <div class="welcome-body frame">
       <span class="w-kick">◆ L'ÉPREUVE DES ${CHALLENGE_DAYS} JOURS ◆</span>
@@ -703,6 +721,24 @@ function viewWelcome() {
       <button class="link" data-action="how">Pourquoi ${CHALLENGE_DAYS} jours ?</button>
     </div>
   </section>`;
+}
+
+// Case de manga en tête d'écran : image, trame, lignes de vitesse, encart narratif.
+const PANELS = [
+  { img: "art/system", pos: "50% 30%", text: "Le Système t'a choisi." },
+  { img: "art/training", pos: "50% 40%", text: "Chaque rang se gagne." },
+  { img: "art/study", pos: "60% 35%", text: "Ton esprit est une arme." },
+  { img: "art/rest", pos: "55% 45%", text: "La force naît du calme." },
+  { img: "art/friends", pos: "50% 45%", text: "Tu n'avances pas seul." },
+  { img: "art/summit", pos: "40% 35%", text: "Le sommet t'attend." },
+];
+function mangaPanel(k, label) {
+  const p = PANELS[k % PANELS.length];
+  return `<figure class="mpanel ${p.img.startsWith("art/") ? "art" : p.img === "welcome-scene" ? "color" : ""} ${k % 2 ? "tilt-r" : "tilt-l"}">
+    <img src="assets/${p.img}.webp" alt="" style="object-position:${p.pos}">
+    <div class="mp-lines"></div>
+    <figcaption>${esc(label || p.text)}</figcaption>
+  </figure>`;
 }
 
 function quizSteps() {
@@ -724,7 +760,7 @@ function viewQuiz() {
     body = `<div class="options">${opts
       .map(
         (o) => `<button class="opt ${a[s.id] === o.v ? "on" : ""}" data-action="pick" data-v="${esc(o.v)}">
-          ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</button>`
+          ${o.icon ? `<i class="opt-ico">${ico(o.icon)}</i>` : ""}<span>${esc(o.label)}</span>${o.hint ? `<small>${esc(o.hint)}</small>` : s.id === "path" && recommendedPath(a) === o.v ? `<small>conseillé pour ${mbtiOf(a)}</small>` : ""}</button>`
       )
       .join("")}</div>`;
   } else if (s.type === "multi") {
@@ -756,6 +792,7 @@ function viewQuiz() {
       <div class="progress"><div style="width:${Math.max(pct, 4)}%"></div></div>
       <span class="step-count">${ui.quiz.step + 1}/${steps.length}</span>
     </div>
+    ${mangaPanel(ui.quiz.step)}
     <div class="sys-tag">[SYSTÈME] ÉVALUATION</div>
     <h2>${esc(s.q)}</h2>
     ${s.sub || s.subExtra ? `<p class="sub">${s.sub ? esc(s.sub) : ""} ${s.type === "multi" && s.max ? s.subExtra || "" : ""}</p>` : ""}
@@ -814,6 +851,7 @@ function viewBaseline() {
   const stepsMsg = steps < 3000 ? "On part de bas. Chaque pas comptera double." : steps < 6000 ? "Une base honnête. On va la faire grimper." : "Belle base. On va s'en servir.";
   const sleepMsg = sleep < 6 ? "C'est ton chantier n°1 : sans sommeil, aucune habitude ne tient." : sleep > 8.5 ? "Tu dors beaucoup. On vérifiera que c'est du repos, pas de la fuite." : "Une bonne base pour construire.";
   return `<section class="screen center-screen">
+    ${mangaPanel(2, "Voici d'où part ton histoire.")}
     <span class="pill">◆ [SYSTÈME] POINT DE DÉPART</span>
     <h2 class="big-title">Ton point de départ.</h2>
     <p class="sub">Pas besoin d'être prêt. Il suffit de savoir d'où tu pars.</p>
@@ -842,7 +880,7 @@ function viewSummary() {
     ? `Je me lève vers ${wake} et je sais tenir une routine.`
     : `Je vise un lever à ${wake}, mais tenir dans la durée, c'est dur.`;
   const cards = [
-    ["target", "Ce que tu veux", FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline, true],
+    ["target", "Ce que tu veux", (a.mainGoal && a.mainGoal.trim() ? `Dans 100 jours : ${a.mainGoal.trim()}.` : FOCUS_SENTENCE[(a.focus || [])[0]] || FOCUS_SENTENCE.discipline), true],
     ["timer", "Ton rythme", rhythm],
     ["bolt", "Ton frein", all(a.enemy).map((e) => ENEMY_SENTENCE[e]).filter(Boolean).join(" ") || ENEMY_SENTENCE.procrast],
   ];
@@ -856,7 +894,7 @@ function viewSummary() {
     <div class="sys-tag">ACTIONS DU JOUR 1</div>
     <div class="actions">${firstActions(a, weak)
       .map(([when, [t, d]], k) => `<div class="action ${k === 0 ? "hot" : ""}" style="animation-delay:${300 + k * 120}ms">
-        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>${k === 0 ? inkPad("task", "Écris-le ici avec ton doigt", 150) : ""}`)
+        <span class="when">${when}</span><div><b>${esc(t)}</b><small>${esc(d)}</small></div></div>${k === 0 ? `<p class="ink-explain">${ico("pen")} <b>Ton engagement</b> (facultatif) : écris « Je le fais » ou ton prénom avec ton doigt. Écrire une promesse à la main aide à la tenir.</p>${inkPad("task", "Je le fais ce soir.", 120)}` : ""}`)
       .join("")}</div>
     ${goBtn("archetype")}
   </section>`;
@@ -899,12 +937,13 @@ function viewArchetype() {
   return `<section class="screen center-screen archetype" style="--ac:${ar.color}">
     ${embers()}
     <span class="pill">◆ TON ARCHÉTYPE</span>
-    <div class="arch-emblem"><div class="speedlines"></div>
-      <svg class="arch-runes" viewBox="0 0 200 200"><defs><path id="rc" d="M100 100m-82 0a82 82 0 1 1 164 0a82 82 0 1 1-164 0"/></defs>
-        <circle cx="100" cy="100" r="92"/><circle cx="100" cy="100" r="72"/>
-        <text><textPath href="#rc">ステータス · 覚醒 · SOUL · LEVEL · UP · 覚醒 · ステータス · SYSTEM ·</textPath></text></svg>
-      <div class="arch-hex">${ico(ar.ico)}</div>
-      <span class="gogo l">ゴ<br>ゴ<br>ゴ</span><span class="gogo r">ゴ<br>ゴ<br>ゴ</span></div>
+    <figure class="mpanel arch-panel tilt-l">
+      <img src="assets/art/awakening.webp" alt="" style="object-position:50% 30%">
+      <div class="mp-lines"></div>
+      <span class="arch-badge" style="--ac:${ar.color}">${ico(ar.ico)}</span>
+      <span class="gogo l">ゴ<br>ゴ<br>ゴ</span>
+      <figcaption>Éveil de ton archétype…</figcaption>
+    </figure>
     <h2 class="big-title">${ar.name}</h2>
     <p class="sub">${esc(ar.text)}</p>
     ${mbtiCard(ui.quiz.answers)}
@@ -955,10 +994,9 @@ function viewPact() {
       </div>
     </div>
     <div class="pact-steps">
-      <button class="blade" id="blade" type="button" aria-label="Piquer ton doigt">
-        <svg viewBox="0 0 64 64" class="finger"><path d="M22 62V30a10 10 0 0 1 20 0v32" class="f-skin"/><path d="M26 30a6 6 0 0 1 12 0" class="f-nail"/></svg>
+      <button class="blade pact-art" id="blade" type="button" aria-label="Piquer ton doigt">
+        <img src="assets/art/pact.webp" alt="Une goutte de sang au bout du doigt">
         <span class="drop" id="drop"></span>
-        <svg viewBox="0 0 64 64" class="knife"><path d="M8 56 L44 20 L54 10 L50 24 L14 60z" class="k-blade"/><path d="M4 60l6-6 4 4-6 6z" class="k-hilt"/></svg>
       </button>
       <p class="sub small" id="pact-step">1. Touche la lame pour piquer ton doigt.</p>
     </div>
@@ -1014,6 +1052,10 @@ function setupPact() {
     }
     e.preventDefault();
     zone.classList.add("holding");
+    zone.querySelectorAll(".print").forEach((x) => x.remove());
+    const seed = 1 + Math.floor(Math.random() * 9000);
+    zone.insertAdjacentHTML("beforeend", fingerprintSvg(seed));
+    zone.dataset.seed = seed;
     prog.style.transition = "stroke-dashoffset 1.3s linear";
     prog.style.strokeDashoffset = "0";
     vibrate(20);
@@ -1021,9 +1063,7 @@ function setupPact() {
       sealed = true;
       zone.classList.remove("holding");
       zone.classList.add("sealed");
-      const seed = 1 + Math.floor(Math.random() * 9000);
-      zone.insertAdjacentHTML("beforeend", fingerprintSvg(seed));
-      ui.quiz.answers.seal = seed;
+      ui.quiz.answers.seal = Number(zone.dataset.seed);
       document.getElementById("seal-hint").textContent = "";
       step.innerHTML = "<b>Pacte scellé.</b> Il n'y a plus de retour en arrière.";
       document.querySelector(".pact-paper").classList.add("sealed");
@@ -1036,6 +1076,8 @@ function setupPact() {
     if (sealed) return;
     clearTimeout(timer);
     zone.classList.remove("holding");
+    const pr = zone.querySelector(".print");
+    if (pr) { pr.classList.add("fade"); setTimeout(() => pr.remove(), 300); }
     prog.style.transition = "stroke-dashoffset .25s";
     prog.style.strokeDashoffset = "100";
   };
@@ -1070,8 +1112,7 @@ function setupHold() {
 
 function viewHowto() {
   return `<section class="screen center-screen howto">
-    <div class="scene-banner">${scene({ signs: ["Sem. 1", "Sem. 4", "J" + CHALLENGE_DAYS] })}${embers()}
-      <div class="banner-emblem">${emblem(RANKS[0], 84)}<i class="up">${ico("rise")}</i>${emblem(RANKS[4], 84)}</div></div>
+    ${mangaPanel(1, "Ta vie devient le jeu.")}
     <div class="sys-tag">[SYSTÈME] LES RÈGLES</div>
     <h2 class="big-title">Ta vie devient le jeu.</h2>
     <div class="how-steps frame">
@@ -1098,7 +1139,7 @@ function viewReveal() {
   const enemy = all(a.enemy).map((e) => enemyNames[e]).filter(Boolean).join(", ") || "—";
   const focus = QUIZ.find((x) => x.id === "focus").options.filter((o) => (a.focus || []).includes(o.v)).map((o) => o.label).join(", ") || "—";
   return `<section class="screen reveal">
-    <div class="scene-banner short">${scene({ signs: ["Sem. 2", "Sem. 3", "J" + CHALLENGE_DAYS] })}</div>
+    ${mangaPanel(3, "Semaine 1. Le chemin commence.")}
     <div class="sys-tag">[SYSTÈME] PROGRAMME PRÊT</div>
     <h2>${esc(name)}, voici ta semaine 1.</h2>
     ${mangaCard({ kicker: "Ton pacte t'attend", title: `${esc(name)}, ton histoire commence.`, text: "Chaque quête est une case de ton manga. À la fin de la semaine, tu ne seras déjà plus le même personnage.", hero: "hero-soul" })}
@@ -1168,6 +1209,7 @@ function viewQuests() {
       <div class="xpbar" title="Niveau ${L.lvl}"><div style="width:${(L.cur / L.need) * 100}%"></div></div>
       <div class="xpbar-label"><span>Niv. ${L.lvl}</span><span>${L.cur} / ${L.need} XP</span></div>
     </header>
+    ${state.answers.mainGoal ? `<div class="goal-pin">${ico("target")}<span><small>TON OBJECTIF</small>${esc(state.answers.mainGoal)}</span></div>` : ""}
     ${eventCard()}
     <div class="seg">
       <button class="${ui.filter === "todo" ? "on" : ""}" data-action="filter" data-v="todo">À faire <i>${todo.length}</i></button>
@@ -1249,6 +1291,7 @@ function viewGuild() {
   if (!cloud.user) {
     const up = ui.authMode !== "login";
     return `${hud()}<h1 class="page-title">Guilde</h1>
+      <figure class="mpanel art tilt-r"><img src="assets/art/friends.webp" alt="" style="object-position:50% 45%"><div class="mp-lines"></div><figcaption>Rejoins la Guilde.</figcaption></figure>
       <p class="sub">Crée ton compte pour ajouter des amis, apparaître dans les classements et retrouver ta progression sur un autre téléphone.</p>
       <div class="seg wide"><button class="${up ? "on" : ""}" data-action="authmode" data-v="signup">Créer un compte</button><button class="${up ? "" : "on"}" data-action="authmode" data-v="login">Se connecter</button></div>
       <form class="auth frame" id="auth-form">
@@ -1302,11 +1345,17 @@ const TOOLS = [
   { id: "focus", ico: "timer", name: "Focus", sub: "Minuteur de concentration" },
   { id: "breath", ico: "wind", name: "Respiration", sub: "Cohérence guidée, 2 min" },
   { id: "journal", ico: "pen", name: "Journal", sub: "Une question par jour" },
-  { id: "library", ico: "books", name: "Bibliothèque", sub: "Idées clés de livres" },
+  { id: "library", ico: "books", name: "Bibliothèque", sub: "Livres, films, séries" },
+  { id: "sport", ico: "body", name: "Sport", sub: "Tes séances par sport" },
+  { id: "nutrition", ico: "food", name: "Nutrition", sub: "Coach et recettes" },
+  { id: "revision", ico: "learn", name: "Révisions", sub: "Cartes mémoire" },
+  { id: "project", ico: "target", name: "Projet", sub: "Étapes et prochaine action" },
+  { id: "coach", ico: "people", name: "Coach IA", sub: "Pose tes questions" },
+  { id: "path", ico: "blade", name: "Ta voie", sub: "Lumière ou Ombre" },
 ];
 
 function viewTools() {
-  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary }[ui.tool]();
+  if (ui.tool) return `<button class="back-link" data-action="tool" data-v="">${BACK} Outils</button>` + { focus: viewFocus, breath: viewBreath, journal: viewJournal, library: viewLibrary, sport: viewSport, nutrition: viewNutrition, revision: viewRevision, project: viewProject, coach: viewCoach, path: viewPathTool }[ui.tool]();
   const m = metrics();
   return `${hud()}
     <h1 class="page-title">Outils</h1>
@@ -1386,12 +1435,167 @@ function viewLibrary() {
       ${read.has(b.id) ? `<button class="btn ghost" data-action="book" data-v="">✓ Déjà lu · retour</button>` : `<button class="btn primary" data-action="bookdone" data-v="${b.id}">J'ai lu ces idées (+20 XP)</button>`}
     </div>`;
   }
+  const tabs = `<div class="seg wide">${[["books", "Livres"], ["Film", "Films"], ["Série", "Séries"]].map(([k, n]) => `<button class="${(ui.libTab || "books") === k ? "on" : ""}" data-action="libtab" data-v="${k}">${n}</button>`).join("")}</div>`;
+  if (ui.libTab && ui.libTab !== "books") {
+    const weak = weakestAxis(profileScores(state.answers));
+    const list = MEDIA.filter((m) => m.kind === ui.libTab).sort((x, y) => (y.stat === weak) - (x.stat === weak));
+    return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] À REGARDER</div><h2 class="big-title">Nourris ton mental.</h2>${tabs}
+      <div class="media">${list.map((m) => `<div class="medium" style="--sc:${STATS[m.stat].color}">
+        <div><b>${esc(m.title)}</b><small>${m.kind} · ${m.year} · ${STATS[m.stat].label}${m.stat === weak ? " · conseillé pour toi" : ""}</small><p>${esc(m.why)}</p></div></div>`).join("")}</div></div>`;
+  }
   return `<div class="tool-view left">
     <div class="sys-tag">[SYSTÈME] BIBLIOTHÈQUE</div>
-    <h2 class="big-title">3 idées, 3 minutes.</h2>
+    <h2 class="big-title">3 idées, 3 minutes.</h2>${tabs}
     <div class="books">${BOOKS.map((b) => `<button class="book ${read.has(b.id) ? "read" : ""}" data-action="book" data-v="${b.id}" style="--sc:${STATS[b.stat].color}">
       <b>${esc(b.title)}</b><small>${esc(b.author)}</small><em>${read.has(b.id) ? "✓ lu" : STATS[b.stat].label}</em></button>`).join("")}</div>
   </div>`;
+}
+
+// ---------- Sport ----------
+const coachBtn = (mode, label) => `<button class="btn ghost coach-link" data-action="tool" data-v="coach" data-mode="${mode}">${ico("people")} ${label}</button>`;
+function viewSport() {
+  const mine = (state.answers.sports || []).filter((x) => SPORT_PLANS[x]);
+  const list = [...new Set([...mine, ...Object.keys(SPORT_PLANS).filter((x) => x !== "other")])];
+  const sp = (ui.sport = ui.sport || list[0]);
+  const name = sp === "other" && state.answers.sportOther ? state.answers.sportOther : SPORT_NAMES[sp];
+  const plan = SPORT_PLANS[sp];
+  if (ui.session != null) {
+    const [title, ex] = plan[ui.session];
+    const done = ui.exDone || [];
+    return `<div class="tool-view left"><button class="back-link" data-action="session" data-v="">${BACK} ${esc(name)}</button>
+      <div class="sys-tag">[SYSTÈME] SÉANCE</div><h2 class="big-title">${esc(title)}</h2>
+      <div class="checklist">${ex.map((e, k) => `<button class="chk ${done.includes(k) ? "on" : ""}" data-action="exdone" data-v="${k}"><span class="q-check">${CHECK}</span>${esc(e)}</button>`).join("")}</div>
+      <button class="btn primary" data-action="sessiondone" ${done.length < ex.length ? "disabled" : ""}>Séance terminée (+30 XP)</button></div>`;
+  }
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] SPORT</div><h2 class="big-title">${esc(name)}</h2>
+    <div class="sugg">${list.map((x) => `<button class="chip-s ${x === sp ? "on" : ""}" data-action="sportpick" data-v="${x}">${esc(x === "other" && state.answers.sportOther ? state.answers.sportOther : SPORT_NAMES[x])}${mine.includes(x) ? " ★" : ""}</button>`).join("")}</div>
+    <div class="sessions">${plan.map(([t, ex], k) => `<button class="session" data-action="session" data-v="${k}"><b>Séance ${k + 1} · ${esc(t)}</b><small>${ex.length} exercices · ${esc(ex.slice(0, 2).join(", "))}…</small></button>`).join("")}</div>
+    <p class="sub small">★ = tes sports. Fais 2 à 4 séances par semaine, avec au moins un jour de repos entre deux séances intenses.</p>
+    ${coachBtn("sport", "Une séance sur mesure avec le coach")}</div>`;
+}
+
+// ---------- Nutrition ----------
+function viewNutrition() {
+  const a = state.answers;
+  const goal = a.goal_body === "lose" || a.goal_food === "sugar" ? "lose" : a.goal_body === "muscle" ? "muscle" : a.goal_food === "energy" ? "energy" : "default";
+  if (ui.recipe != null) {
+    const r = RECIPES[ui.recipe];
+    return `<div class="tool-view left"><button class="back-link" data-action="recipe" data-v="">${BACK} Recettes</button>
+      <div class="sys-tag">${r.time} MIN · ${r.tags.join(" · ").toUpperCase()}</div><h2 class="big-title">${esc(r.name)}</h2>
+      <section class="card"><h3>Ingrédients</h3><ul class="plain">${r.ing.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+      <section class="card"><h3>Étapes</h3><ol class="ideas">${r.steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></section>
+      <button class="btn primary" data-action="cooked">J'ai cuisiné ce plat (+20 XP)</button></div>`;
+  }
+  const tags = ["Tout", ...new Set(RECIPES.flatMap((r) => r.tags))];
+  const tag = ui.rtag || "Tout";
+  const list = RECIPES.map((r, k) => [r, k]).filter(([r]) => tag === "Tout" || r.tags.includes(tag));
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] NUTRITION</div><h2 class="big-title">Ton carburant.</h2>
+    <section class="card"><h3>Tes 4 règles${goal !== "default" ? ` · objectif ${{ lose: "perte de poids", muscle: "prise de muscle", energy: "énergie" }[goal]}` : ""}</h3>
+      <ol class="ideas">${NUTRI_TIPS[goal].map((x) => `<li>${esc(x)}</li>`).join("")}</ol></section>
+    <h3 class="j-past-title">Recettes faciles</h3>
+    <div class="sugg">${tags.map((t) => `<button class="chip-s ${t === tag ? "on" : ""}" data-action="rtag" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+    <div class="media">${list.map(([r, k]) => `<button class="medium recipe" data-action="recipe" data-v="${k}" style="--sc:var(--gold)"><b>${esc(r.name)}</b><small>${r.time} min · ${esc(r.tags.join(" · "))}</small></button>`).join("")}</div>
+    ${coachBtn("nutrition", "Demander un menu au coach")}
+    <p class="sub small">Conseils généraux, pas un avis médical. En cas de problème de santé, parles-en à un médecin.</p></div>`;
+}
+
+// ---------- Révisions : cartes mémoire (boîtes de Leitner) ----------
+const BOX_DAYS = [0, 1, 3, 7, 16];
+function viewRevision() {
+  state.cards = state.cards || [];
+  const due = state.cards.filter((c) => c.due <= today());
+  if (ui.review && due.length) {
+    const c = due[0];
+    return `<div class="tool-view left"><button class="back-link" data-action="review" data-v="">${BACK} Révisions</button>
+      <div class="sys-tag">[SYSTÈME] RÉVISION · ${due.length} CARTE${due.length > 1 ? "S" : ""}</div>
+      <div class="flash frame"><small>Question</small><p>${esc(c.q)}</p>
+        ${ui.reveal ? `<small>Réponse</small><p class="ans">${esc(c.a)}</p>` : ""}</div>
+      ${ui.reveal ? `<div class="ask-row"><button class="btn ghost" data-action="grade" data-v="0">Pas encore</button><button class="btn primary" data-action="grade" data-v="1">Je savais</button></div>`
+        : `<button class="btn primary" data-action="reveal">Voir la réponse</button>`}
+      <p class="sub small">Réponds dans ta tête avant de retourner la carte. C'est l'effort de rappel qui fait retenir.</p></div>`;
+  }
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] RÉVISIONS</div><h2 class="big-title">Retiens pour de bon.</h2>
+    <div class="stats-row"><div class="stat-box"><b>${state.cards.length}</b><small>cartes</small></div><div class="stat-box"><b>${due.length}</b><small>à revoir</small></div><div class="stat-box"><b>${state.cards.filter((c) => c.box >= 4).length}</b><small>maîtrisées</small></div></div>
+    ${due.length ? `<button class="btn primary" data-action="review" data-v="1">Réviser ${due.length} carte${due.length > 1 ? "s" : ""}</button>` : `<p class="sub">Rien à revoir aujourd'hui. Ajoute des cartes ou reviens demain.</p>`}
+    <form class="auth frame" id="card-form"><label>Question<input name="q" maxlength="200" required placeholder="Ex : Article 1240 du Code civil ?"></label>
+      <label>Réponse<input name="a" maxlength="300" required placeholder="La réponse à retenir"></label>
+      <button class="btn small" type="submit">Ajouter la carte</button></form>
+    <section class="card"><h3>3 méthodes qui marchent</h3><ol class="ideas">
+      <li><b>Rappel actif</b> : cache tes notes et récite. Bien plus efficace que relire.</li>
+      <li><b>Répétition espacée</b> : revoir une carte à J+1, J+3, J+7, J+16. Ces cartes le font pour toi.</li>
+      <li><b>Pomodoro</b> : 25 min de travail, 5 min de pause. Lance l'outil Focus.</li></ol></section>
+    ${coachBtn("revision", "Faire réviser par le coach")}</div>`;
+}
+
+// ---------- Projet ----------
+function viewProject() {
+  state.projects = state.projects || [];
+  const p = state.projects[0];
+  if (!p) {
+    return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] PROJET</div><h2 class="big-title">Ton projet, étape par étape.</h2>
+      <form class="auth frame" id="project-form"><label>Nom du projet<input name="name" maxlength="60" required placeholder="Ex : Lancer ma chaîne YouTube" value="${esc(state.answers.dream || "")}"></label>
+        <label>À quoi ressemble la réussite ?<input name="goal" maxlength="120" placeholder="Ex : 10 vidéos publiées"></label>
+        <button class="btn primary" type="submit">Créer mon projet</button></form></div>`;
+  }
+  const next = p.steps.find((x) => !x.done);
+  const done = p.steps.filter((x) => x.done).length;
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] PROJET</div><h2 class="big-title">${esc(p.name)}</h2>
+    ${p.goal ? `<p class="sub">Réussite : ${esc(p.goal)}</p>` : ""}
+    <div class="xpbar"><div style="width:${p.steps.length ? (done / p.steps.length) * 100 : 0}%"></div></div>
+    <div class="xpbar-label"><span>${done}/${p.steps.length} étapes</span></div>
+    ${next ? `<div class="goal-pin">${ico("target")}<span><small>PROCHAINE ACTION</small>${esc(next.t)}</span></div>` : ""}
+    <div class="checklist">${p.steps.map((x, k) => `<button class="chk ${x.done ? "on" : ""}" data-action="stepdone" data-v="${k}"><span class="q-check">${CHECK}</span>${esc(x.t)}</button>`).join("")}</div>
+    <form class="g-add" id="step-form"><label class="text-wrap">${ico("pen")}<input class="text-in" name="t" maxlength="100" placeholder="Nouvelle étape (moins de 30 min)" required></label><button class="btn small" type="submit">Ajouter</button></form>
+    ${coachBtn("projet", "Découper mon projet avec le coach")}
+    <button class="row-btn danger" data-action="projdel">Supprimer ce projet</button></div>`;
+}
+
+// ---------- Voie de la Lumière / de l'Ombre ----------
+function viewPathTool() {
+  const a = state.answers;
+  const cur = a.path || recommendedPath(a) || "light";
+  const P = PATHS[cur];
+  const t = mbtiOf(a);
+  const tr = t && MBTI_TRAITS[t];
+  return `<div class="tool-view left path-${cur}">
+    <div class="sys-tag">[SYSTÈME] TA VOIE</div>
+    <div class="seg wide">${Object.entries(PATHS).map(([k, p]) => `<button class="${cur === k ? "on" : ""}" data-action="setpath" data-v="${k}">${p.name.replace("Voie de l'", "").replace("Voie de la ", "")}</button>`).join("")}</div>
+    <figure class="mpanel path-panel tilt-l"><img src="assets/art/${cur === "shadow" ? "awakening" : "rest"}.webp" alt="" style="object-position:50% 35%"><div class="mp-lines"></div>
+      <figcaption>${esc(P.name)}</figcaption></figure>
+    <p class="sub">${esc(P.motto)}${recommendedPath(a) ? ` Pour ton type ${t}, le Système conseille la ${PATHS[recommendedPath(a)].name}.` : ""}</p>
+    ${tr ? `<section class="card"><h3>Ton type ${t}</h3><div class="sw-row"><div><small>FORCES À EXPLOITER</small>${tr[0].map((x) => `<span class="pill-s up">${esc(x)}</span>`).join("")}</div>
+      <div><small>FAIBLESSES À TRAVAILLER</small>${tr[1].map((x) => `<span class="pill-s down">${esc(x)}</span>`).join("")}</div></div></section>`
+      : `<p class="sub small">Indique ta personnalité MBTI dans ton Profil pour voir tes forces et tes faiblesses.</p>`}
+    <h3 class="j-past-title">${cur === "shadow" ? "Arts de l'Ombre : maîtrise et protection" : "Arts de la Lumière"}</h3>
+    <div class="arts">${ARTS[cur].map(([n, use, guard]) => `<details class="art"><summary>${esc(n)}</summary>
+      <p><b>${cur === "shadow" ? "Le maîtriser" : "Le pratiquer"} :</b> ${esc(use)}</p><p><b>${cur === "shadow" ? "Te protéger" : "Défi du jour"} :</b> ${esc(guard)}</p></details>`).join("")}</div>
+    <section class="card"><h3>À lire</h3><ul class="plain">${(cur === "shadow"
+      ? ["Les 48 lois du pouvoir, Robert Greene", "Influence et manipulation, Robert Cialdini", "Ne coupez jamais la poire en deux, Chris Voss", "Les lois de la nature humaine, Robert Greene"]
+      : ["Comment se faire des amis, Dale Carnegie", "Pensées pour moi-même, Marc Aurèle", "Les quatre accords toltèques, Don Miguel Ruiz", "Découvrir un sens à sa vie, Viktor Frankl"]).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>
+    <p class="sub small">Le vrai pouvoir commence par le contrôle de soi. Utilise ces savoirs pour te protéger et grandir, jamais pour nuire.</p></div>`;
+}
+
+// ---------- Coach IA ----------
+const COACH_MODES = [["sport", "Sport"], ["nutrition", "Nutrition"], ["revision", "Révisions"], ["projet", "Projet"]];
+function coachProfile() {
+  const a = state.answers;
+  return [`prénom ${state.name}`, a.age && `âge ${a.age}+`, a.status && `situation ${a.status}`, a.field && `domaine ${a.field}`,
+    (a.sports || []).length && `sports ${(a.sports || []).map((x) => SPORT_NAMES[x]).join(", ")}`, a.mainGoal && `objectif ${a.mainGoal}`,
+    `rang ${rankFor(levelInfo(totalXp()).lvl).letter}`].filter(Boolean).join(", ");
+}
+function viewCoach() {
+  const mode = ui.coachMode || "projet";
+  const msgs = ((ui.chat = ui.chat || {})[mode] = ui.chat[mode] || []);
+  if (!cloud.enabled || !cloud.user) return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] COACH IA</div>
+    ${mangaCard({ kicker: "Coach IA", title: "Connecte-toi d'abord.", text: "Le coach répond grâce à l'IA sur le serveur. Crée ton compte dans l'onglet Guilde.", seal: false })}</div>`;
+  return `<div class="tool-view left"><div class="sys-tag">[SYSTÈME] COACH IA</div>
+    <div class="seg wide">${COACH_MODES.map(([k, n]) => `<button class="${mode === k ? "on" : ""}" data-action="coachmode" data-v="${k}">${n}</button>`).join("")}</div>
+    <div class="chat" id="chat">${msgs.length ? msgs.map((m) => `<div class="bubble ${m.role}">${esc(m.content).replace(/\n/g, "<br>")}</div>`).join("")
+      : `<div class="bubble assistant">${{ sport: "Dis-moi ton sport, ton niveau et ton matériel : je te prépare une séance.", nutrition: "Ton objectif ? Je te propose des repas simples et des recettes.", revision: "Quelle matière, quel examen, quelle date ? Je t'aide à t'organiser ou je t'interroge.", projet: "Raconte-moi ton projet. On va le découper en petites actions." }[mode]}</div>`}
+      ${ui.coachBusy ? `<div class="bubble assistant typing">Le coach écrit…</div>` : ""}</div>
+    ${ui.coachError ? `<p class="auth-err">${esc(ui.coachError)}</p>` : ""}
+    <form class="g-add" id="coach-form"><label class="text-wrap">${ico("pen")}<input class="text-in" name="m" maxlength="800" placeholder="Écris ta question…" autocomplete="off" required></label><button class="btn small" type="submit" ${ui.coachBusy ? "disabled" : ""}>Envoyer</button></form>
+    <p class="sub small">Conseils d'une IA, pas d'un professionnel de santé. 20 messages par jour.</p></div>`;
 }
 
 function startTimer(kind) {
@@ -1535,6 +1739,8 @@ function viewProfile() {
       <h3>Réglages</h3>
       <div class="theme-pick"><span>Interface</span><div class="seg wide">${Object.entries(THEMES).map(([k, n]) => `<button class="${(state.theme || "forge") === k ? "on" : ""}" data-action="theme" data-v="${k}">${n}</button>`).join("")}</div></div>
       ${NATIVE ? `<button class="row-btn" data-action="reminders">${ico("bolt")} Rappels quotidiens : ${state.reminders && state.reminders.on ? "activés" : "désactivés"}</button>` : ""}
+      ${typeof snd !== "undefined" ? `<button class="row-btn" data-action="sound" data-v="music">${ico("wind")} Musique d'ambiance : ${snd.prefs.music ? "activée" : "coupée"}</button>
+      <button class="row-btn" data-action="sound" data-v="sfx">${ico("bolt")} Bruitages : ${snd.prefs.sfx ? "activés" : "coupés"}</button>` : ""}
       <a class="row-btn" href="privacy.html" target="_blank" rel="noopener">${ico("shield")} Politique de confidentialité</a>
       ${cloud.user ? `<button class="row-btn danger" data-action="delaccount">${ico("lock")} Supprimer mon compte</button>` : ""}
       <button class="row-btn" data-action="help">💬 Besoin de parler à quelqu'un ?</button>
@@ -1575,7 +1781,7 @@ const HELP_HTML = `<div class="sys-tag">[SYSTÈME] TU N'ES PAS SEUL(E)</div>
   <h2>Parler à quelqu'un, maintenant</h2>
   <p class="sub">Si tu traverses un moment très difficile, des personnes formées sont là pour t'écouter, gratuitement, 24h/24.</p>
   <a class="help-line" href="tel:3114"><b>3114</b><span>Numéro national de prévention du suicide</span></a>
-  <a class="help-line" href="tel:0972394050"><b>09 72 39 40 50</b><span>SOS Amitié — écoute anonyme</span></a>
+  <a class="help-line" href="tel:0972394050"><b>09 72 39 40 50</b><span>SOS Amitié, écoute anonyme</span></a>
   <a class="help-line" href="tel:112"><b>112</b><span>Urgences</span></a>
   <p class="sub small">Soul Leveling est un outil de motivation, pas un soin. Il ne remplace pas un professionnel de santé.</p>`;
 
@@ -1607,7 +1813,7 @@ function systemUnlock() {
   el.innerHTML = `<div class="speedlines"></div><div class="lu-inner frame">
     <div class="sys-tag">[SYSTÈME] ${c === 2 ? "ÉPREUVE ACCOMPLIE" : "CYCLE TERMINÉ"}</div>
     <div class="lu-title">${c === 2 ? "LE SYSTÈME EST DÉBLOQUÉ" : `CYCLE ${ROMAN[c] || c}`}</div>
-    <img class="unlock-hero" src="assets/emblem-hero.webp" alt="" aria-hidden="true">
+    <img class="unlock-hero art" src="assets/art/summit.webp" alt="" aria-hidden="true">
     <p class="sub">${c === 2 ? `Tu as tenu ${CHALLENGE_DAYS} jours. Tes quêtes deviennent ton quotidien. Nouveau cycle, nouvelle étoile de prestige.` : "Une étoile de prestige de plus. Le Système continue."}</p>
     <div class="stars big">${"★".repeat(Math.min(5, c - 1))}</div>
     <small>Touchez pour continuer</small></div>`;
@@ -1921,6 +2127,8 @@ const actions = {
   },
   tool(el) {
     ui.tool = el.dataset.v || null;
+    if (el.dataset.mode) ui.coachMode = el.dataset.mode;
+    ui.session = ui.recipe = null; ui.review = false;
     ui.book = null;
     render();
   },
@@ -1959,6 +2167,42 @@ const actions = {
   },
   book(el) {
     ui.book = el.dataset.v || null;
+    render();
+  },
+  sportpick(el) { ui.sport = el.dataset.v; ui.session = null; render(); },
+  session(el) { ui.session = el.dataset.v === "" ? null : Number(el.dataset.v); ui.exDone = []; render(); },
+  exdone(el) { const k = Number(el.dataset.v); ui.exDone = ui.exDone.includes(k) ? ui.exDone.filter((x) => x !== k) : [...ui.exDone, k]; render(); },
+  sessiondone() { if (!awardExtra("sport-" + (ui.sport || "x"), 30, "FOR", 1)) toast("Séance déjà comptée aujourd'hui pour ce sport."); ui.session = null; render(); },
+  recipe(el) { ui.recipe = el.dataset.v === "" ? null : Number(el.dataset.v); render(); },
+  rtag(el) { ui.rtag = el.dataset.v; render(); },
+  cooked() { if (!awardExtra("recipe", 20, "ENE", 1)) toast("Déjà compté aujourd'hui. Bon appétit !"); ui.recipe = null; render(); },
+  review(el) { ui.review = !!el.dataset.v; ui.reveal = false; render(); },
+  reveal() { ui.reveal = true; render(); },
+  grade(el) {
+    const c = state.cards.filter((x) => x.due <= today())[0];
+    c.box = el.dataset.v === "1" ? Math.min(4, c.box + 1) : 0;
+    c.due = addDays(today(), BOX_DAYS[c.box] || 1);
+    ui.reviewed = (ui.reviewed || 0) + 1;
+    if (ui.reviewed === 5) awardExtra("cards", 15, "SAV", 1);
+    ui.reveal = false; save(); render();
+  },
+  stepdone(el) {
+    const st = state.projects[0].steps[Number(el.dataset.v)];
+    st.done = !st.done;
+    if (st.done) awardExtra("project", 15, "COU", 3);
+    save(); render();
+  },
+  projdel() { ask("Supprimer ce projet et ses étapes ?", "Supprimer", () => { state.projects.shift(); save(); render(); }); },
+  setpath(el) {
+    state.answers.path = el.dataset.v;
+    state.quests = state.quests.filter((q) => !q.id.startsWith("p-"));
+    PATHS[el.dataset.v].quests.slice(0, 2).forEach(([title, sub, stat, xp], k) => state.quests.push({ id: `p-${el.dataset.v}-${k}`, title, sub, stat, xp }));
+    save(); toast(`${PATHS[el.dataset.v].name} choisie. Tes quêtes de voie sont mises à jour.`); render();
+  },
+  coachmode(el) { ui.coachMode = el.dataset.v; ui.coachError = ""; render(); },
+  libtab(el) {
+    ui.libTab = el.dataset.v;
+    ui.book = null;
     render();
   },
   bookdone(el) {
@@ -2080,6 +2324,7 @@ const actions = {
   tab(el) {
     ui.tab = el.dataset.v;
     ui.creator = false;
+    ui.tool = null;
     if (ui.tab === "guild") guildLoad();
     render();
   },
@@ -2194,6 +2439,33 @@ $app.addEventListener("submit", async (e) => {
     try { cloud.profile = await cloud.api.createProfile({ id: cloud.user.id, username: u, ...myStats() }); ui.authError = ""; }
     catch (err) { ui.authError = authMsg(err.message); }
     render(); guildLoad();
+    return;
+  }
+  if (f0.id === "card-form") {
+    state.cards = state.cards || [];
+    state.cards.push({ q: f0.q.value.trim(), a: f0.a.value.trim(), box: 0, due: today() });
+    save(); toast("Carte ajoutée"); render(); return;
+  }
+  if (f0.id === "project-form") {
+    state.projects = [{ name: f0.name.value.trim(), goal: f0.goal.value.trim(), steps: [] }];
+    save(); render(); return;
+  }
+  if (f0.id === "step-form") {
+    state.projects[0].steps.push({ t: f0.t.value.trim(), done: false });
+    save(); render(); return;
+  }
+  if (f0.id === "coach-form") {
+    const mode = ui.coachMode || "projet";
+    const text = f0.m.value.trim();
+    if (!text) return;
+    ui.chat[mode].push({ role: "user", content: text });
+    ui.coachBusy = true; ui.coachError = ""; render();
+    try {
+      const r = await cloud.api.coach({ mode, profile: coachProfile(), messages: ui.chat[mode] });
+      ui.chat[mode].push({ role: "assistant", content: r.reply });
+    } catch (err) { ui.coachError = err.message; ui.chat[mode].pop(); }
+    ui.coachBusy = false; render();
+    const ch = document.getElementById("chat"); if (ch) ch.scrollIntoView({ block: "end" });
     return;
   }
   if (f0.id === "friend-form") {

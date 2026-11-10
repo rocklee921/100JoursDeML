@@ -5,5 +5,6 @@
 window.SOUL_CONFIG = {
   supabaseUrl: "https://ltnrbkstynacgajoxjjj.supabase.co",
   heroFunction: "dynamic-api", // nom de l'Edge Function de génération de personnage
+  coachFunction: "coach", // nom de l'Edge Function du coach IA
   supabaseAnonKey: "sb_publishable_UWqMNgHtTKjiFcwdl2t1ng_NNSzjK89",
 };

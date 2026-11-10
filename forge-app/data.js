@@ -45,14 +45,6 @@ const MBTI_TEST = [
   ["SN", "Tu fais plus confiance…", ["S", "Aux faits et à l'expérience"], ["N", "À ton intuition et aux idées"]],
   ["TF", "Pour une décision importante, tu écoutes surtout…", ["T", "La logique"], ["F", "Tes valeurs et l'impact sur les autres"]],
   ["JP", "Ton week-end idéal est…", ["J", "Prévu à l'avance"], ["P", "Improvisé selon l'envie"]],
-  ["EI", "En groupe, tu…", ["E", "Parles facilement, même à des inconnus"], ["I", "Observes avant de te lancer"]],
-  ["SN", "Dans une explication, tu préfères…", ["S", "Des exemples concrets, étape par étape"], ["N", "La vue d'ensemble d'abord"]],
-  ["TF", "Un ami te montre un projet raté. Tu…", ["T", "Lui dis franchement ce qui cloche"], ["F", "Le soutiens d'abord, tu critiques après"]],
-  ["JP", "Face à une échéance, tu…", ["J", "Commences tôt"], ["P", "Fonces au dernier moment"]],
-  ["EI", "Tu réfléchis mieux…", ["E", "En parlant à voix haute"], ["I", "Dans ta tête, avant de parler"]],
-  ["SN", "Tu penses plutôt…", ["S", "Au présent, à ce qui est réel"], ["N", "Au futur, à ce qui pourrait être"]],
-  ["TF", "On te décrit plutôt comme…", ["T", "Juste et direct"], ["F", "Chaleureux et à l'écoute"]],
-  ["JP", "Ta chambre ou ton bureau…", ["J", "Rangés, chaque chose à sa place"], ["P", "Un bazar où toi seul(e) t'y retrouves"]],
 ];
 const MBTI_TYPES = {
   INTJ: "Le Stratège", INTP: "Le Penseur", ENTJ: "Le Chef", ENTP: "L'Inventeur",
@@ -78,7 +70,7 @@ const MBTI_STEPS = [
     sub: "Les 4 lettres comme INTJ ou ENFP. On adapte nos conseils à ta façon de fonctionner.",
     options: [
       { v: "know", icon: "check", label: "Oui, je la connais" },
-      { v: "test", icon: "eye", label: "Non, devine-la avec un mini-test", hint: "12 questions" },
+      { v: "test", icon: "eye", label: "Non, devine-la avec un mini-test", hint: "4 questions" },
       { v: "skip", icon: "rise", label: "Passer" },
     ],
   },
@@ -94,11 +86,76 @@ const MBTI_STEPS = [
     id: "mt" + k,
     type: "single",
     q,
-    sub: `Mini-test de personnalité · ${k + 1}/${MBTI_TEST.length}`,
+    sub: `Mini-test · ${k + 1}/${MBTI_TEST.length}`,
     showIf: (a) => a.mbtiKnow === "test",
     options: [{ v: A[0], label: A[1] }, { v: B[0], label: B[1] }],
   })),
 ];
+
+
+// ---------- Entonnoir : objectif précis par domaine ----------
+const GOALS = {
+  body: { q: "En sport, ton objectif principal ?", o: [
+    ["lose", "Perdre du poids", "Marcher 30 min après un repas", "Le meilleur moment pour brûler", "FOR", 25],
+    ["muscle", "Prendre du muscle", "Manger une portion de protéines à chaque repas", "Œufs, poulet, lentilles, skyr", "FOR", 20],
+    ["cardio", "Gagner en endurance", "20 min de cardio sans t'arrêter", "Course, vélo, corde à sauter", "FOR", 30],
+    ["restart", "Reprendre après une pause", "10 min de mouvement, même léger", "La régularité avant l'intensité", "FOR", 20]] },
+  food: { q: "Côté alimentation, tu veux surtout…", o: [
+    ["sugar", "Réduire le sucre", "Zéro boisson sucrée", "Eau, eau pétillante, thé", "ENE", 20],
+    ["cook", "Cuisiner plus", "Préparer un repas maison", "Simple, mais fait par toi", "ENE", 25],
+    ["regular", "Manger à heures fixes", "3 repas à heure fixe", "Pas de grignotage entre", "DIS", 20],
+    ["energy", "Avoir plus d'énergie", "Un fruit et des légumes à chaque repas", "Ton carburant du jour", "ENE", 20]] },
+  sleep: { q: "Ton souci avec le sommeil ?", o: [
+    ["late", "Je me couche trop tard", "Au lit à heure fixe", "Alarme « coucher » 30 min avant", "ENE", 25],
+    ["fall", "J'ai du mal à m'endormir", "Lecture papier 15 min au lit", "Aucun écran dans la chambre", "ENE", 20],
+    ["wake", "Je suis épuisé au réveil", "10 min de lumière du jour au réveil", "Ton horloge interne se cale", "ENE", 15],
+    ["short", "Je ne dors pas assez", "Viser 7 h 30 de sommeil", "Compte à rebours depuis ton réveil", "ENE", 25]] },
+  mind: { q: "Pour ton mental, tu cherches…", o: [
+    ["calm", "Plus de calme", "Méditer 10 min", "Assis, attention au souffle", "MEN", 20],
+    ["confidence", "Plus de confiance", "Noter 3 choses réussies aujourd'hui", "Ton dossier de preuves", "MEN", 15],
+    ["focus", "Plus de concentration", "Une tâche à la fois pendant 25 min", "Notifications coupées", "MEN", 20],
+    ["joy", "Retrouver le moral", "Faire une chose qui te fait plaisir", "Rien que pour toi, sans culpabilité", "MEN", 15]] },
+  discipline: { q: "Quelle habitude veux-tu ancrer ?", o: [
+    ["morning", "Une routine du matin", "Routine du matin en 3 étapes", "Lit, eau, 5 min de mouvement", "DIS", 20],
+    ["evening", "Une routine du soir", "Préparer demain en 5 min", "Tenue, sac, 3 priorités", "DIS", 15],
+    ["promises", "Tenir mes promesses", "Faire ce que tu as prévu, à l'heure prévue", "Une seule promesse, mais tenue", "DIS", 25],
+    ["order", "Vivre dans l'ordre", "Ranger 10 min", "Un tiroir, une étagère, une pièce", "DIS", 15]] },
+  procrast: { q: "Tu procrastines surtout sur…", o: [
+    ["study", "Les révisions ou le travail", "25 min de travail sans téléphone", "Minuteur lancé, téléphone loin", "DIS", 30],
+    ["admin", "L'administratif", "Une tâche administrative par jour", "Mail, papier, rendez-vous", "DIS", 20],
+    ["project", "Un projet perso", "Avancer 20 min sur ton projet", "Même mal, même peu", "COU", 30],
+    ["sport", "Le sport", "Mettre ta tenue de sport", "C'est le plus dur. Le reste suit.", "FOR", 15]] },
+  work: { q: "Pour tes études ou ton travail, tu vises…", o: [
+    ["exam", "Réussir un examen", "Une fiche de révision par jour", "Écrite à la main", "SAV", 30],
+    ["promo", "Une promotion", "Une action qui se voit au travail", "Proposer, finir, améliorer", "DIS", 25],
+    ["change", "Changer de métier", "30 min sur ta reconversion", "Formation, contacts, CV", "COU", 30],
+    ["business", "Lancer mon entreprise", "Une action concrète pour ton projet", "Un client, un test, une page", "COU", 35]] },
+  learn: { q: "Tu veux apprendre quoi ?", o: [
+    ["lang", "Une langue", "15 min de langue", "Appli, podcast ou cours", "SAV", 25],
+    ["code", "Le code ou l'informatique", "30 min de code", "Un petit exercice par jour", "SAV", 30],
+    ["music", "Un instrument", "15 min d'instrument", "Même les gammes comptent", "SAV", 25],
+    ["read", "Lire plus", "Lire 15 pages", "Un livre papier ou liseuse", "SAV", 25]] },
+  culture: { q: "Côté culture et intelligence…", o: [
+    ["general", "Culture générale", "Apprendre un fait et le raconter", "À quelqu'un, le jour même", "SAV", 15],
+    ["logic", "Logique et stratégie", "15 min d'échecs ou d'énigmes", "Ton cerveau est un muscle", "SAV", 20],
+    ["art", "Art et cinéma", "Découvrir une œuvre", "Film, album, expo, documentaire", "SAV", 20],
+    ["debate", "Mieux argumenter", "Écrire ton avis sur un sujet en 5 phrases", "Clair, structuré, honnête", "SAV", 20]] },
+  social: { q: "Côté relations, ton objectif ?", o: [
+    ["shy", "Être moins timide", "Parler à un inconnu", "Une question, un compliment, un merci", "COU", 25],
+    ["friends", "Me faire des amis", "Proposer une activité à quelqu'un", "Café, sport, sortie", "SOC", 25],
+    ["family", "Me rapprocher de ma famille", "Appeler un proche", "Pas un message : un vrai appel", "SOC", 20],
+    ["love", "Ma vie de couple", "Un geste attentionné pour ton ou ta partenaire", "Petit, mais sincère", "SOC", 20]] },
+  money: { q: "Pour ton argent, tu veux…", o: [
+    ["save", "Épargner", "Mettre de côté, même 2 €", "Le geste compte plus que la somme", "DIS", 20],
+    ["debt", "Rembourser des dettes", "Zéro dépense superflue", "Seulement l'essentiel aujourd'hui", "DIS", 25],
+    ["earn", "Gagner plus", "30 min sur un revenu en plus", "Compétence, projet, side business", "COU", 30],
+    ["track", "Savoir où va mon argent", "Noter toutes tes dépenses", "Chaque euro compte", "SAV", 15]] },
+};
+const GOAL_STEPS = Object.entries(GOALS).map(([dom, g]) => ({
+  id: "goal_" + dom, type: "single", q: g.q, sub: "Plus c'est précis, plus ton programme sera juste.",
+  showIf: (a) => (a.focus || []).includes(dom),
+  options: g.o.map(([v, label]) => ({ v, label })),
+}));
 
 // Questionnaire d'accueil. `showIf` permet d'adapter le parcours aux réponses.
 const QUIZ = [
@@ -154,10 +211,10 @@ const QUIZ = [
     q: "Choisis ton interface.",
     sub: "Tu pourras la changer à tout moment dans ton profil.",
     options: [
-      { v: "forge", icon: "rise", label: "Système — bleu électrique", hint: "style manga" },
-      { v: "matrix", icon: "terminal", label: "Matrice — pluie de code", hint: "style hacker" },
-      { v: "zen", icon: "lotus", label: "Zen — calme et yoga", hint: "style doux" },
-      { v: "samurai", icon: "blade", label: "Samouraï — encre et sang", hint: "style bushidō" },
+      { v: "forge", icon: "rise", label: "Système, bleu électrique", hint: "style manga" },
+      { v: "matrix", icon: "terminal", label: "Matrice, pluie de code", hint: "style hacker" },
+      { v: "zen", icon: "lotus", label: "Zen, calme et yoga", hint: "style doux" },
+      { v: "samurai", icon: "blade", label: "Samouraï, encre et sang", hint: "style bushidō" },
     ],
   },
   {
@@ -176,8 +233,7 @@ const QUIZ = [
     id: "focus",
     type: "multi",
     q: "Sur quoi veux-tu progresser ?",
-    sub: "Coche tout ce qui compte pour toi (jusqu'à 6).",
-    max: 6,
+    sub: "Coche tout ce qui compte pour toi, autant que tu veux.",
     options: [
       { v: "body", icon: "body", label: "Sport et forme physique" },
       { v: "food", icon: "food", label: "Alimentation" },
@@ -272,18 +328,6 @@ const QUIZ = [
     ],
   },
   {
-    id: "proud",
-    type: "single",
-    q: "La dernière fois que tu as été fier/fière de toi ?",
-    options: [
-      { v: "today", label: "Aujourd'hui" },
-      { v: "days", label: "Cette semaine" },
-      { v: "weeks", label: "Il y a quelques semaines" },
-      { v: "months", label: "Il y a des mois" },
-      { v: "forgot", label: "Je ne m'en souviens plus" },
-    ],
-  },
-  {
     id: "steps",
     type: "single",
     q: "Combien de pas fais-tu par jour, environ ?",
@@ -357,7 +401,7 @@ const QUIZ = [
     id: "quit",
     type: "multi",
     q: "Veux-tu te libérer de l'une de ces habitudes ?",
-    sub: "Facultatif — sélectionne tout ce qui s'applique.",
+    sub: "Facultatif : sélectionne tout ce qui s'applique.",
     exclusive: "none",
     options: [
       { v: "smoke", label: "Tabac ou vape" },
@@ -368,7 +412,38 @@ const QUIZ = [
       { v: "none", label: "Aucune" },
     ],
   },
+  ...GOAL_STEPS,
+  {
+    id: "time",
+    type: "single",
+    q: "Combien de temps peux-tu y consacrer par jour ?",
+    sub: "Sois réaliste. Un petit programme tenu vaut mieux qu'un grand abandonné.",
+    options: [
+      { v: 15, label: "15 minutes" },
+      { v: 30, label: "30 minutes" },
+      { v: 60, label: "1 heure" },
+      { v: 120, label: "2 heures ou plus" },
+    ],
+  },
+  {
+    id: "mainGoal",
+    type: "text",
+    q: "Dans 100 jours, tu veux être fier de quoi ?",
+    sub: "Une phrase. C'est ton objectif principal, on te le rappellera.",
+    placeholder: "Ton objectif principal…",
+    suggestions: ["Avoir perdu 5 kg", "Avoir réussi mes examens", "Être plus discipliné", "Avoir lancé mon projet", "Me sentir bien dans ma tête", "Dormir 8 h par nuit"],
+  },
   ...MBTI_STEPS,
+  {
+    id: "path",
+    type: "single",
+    q: "Choisis ton camp.",
+    sub: "Lumière : le pouvoir par le lien et l'exemple. Ombre : le pouvoir par la maîtrise de soi et la stratégie. Tu pourras changer plus tard.",
+    options: [
+      { v: "light", icon: "light", label: "Voie de la Lumière" },
+      { v: "shadow", icon: "blade", label: "Voie de l'Ombre" },
+    ],
+  },
   {
     id: "wake",
     type: "choice-grid",
@@ -381,27 +456,6 @@ const QUIZ = [
       { v: "07:00", label: "7h00" },
       { v: "07:30", label: "7h30" },
       { v: "08:00", label: "8h00" },
-    ],
-  },
-  {
-    id: "confidence",
-    type: "slider",
-    q: "Tiendrais-tu une routine 7 jours d'affilée ?",
-    sub: "Sois honnête, ça sert à doser ton programme.",
-    min: 1,
-    max: 10,
-    left: "Aucune chance",
-    right: "Sans problème",
-  },
-  {
-    id: "intensity",
-    type: "single",
-    q: "Quel niveau de difficulté ?",
-    options: [
-      { v: 1, label: "Doux — je reprends en douceur", hint: "3-4 quêtes / jour" },
-      { v: 2, label: "Progressif — je monte en puissance", hint: "5 quêtes / jour" },
-      { v: 3, label: "Exigeant — pousse-moi", hint: "6-7 quêtes / jour" },
-      { v: 4, label: "Mode éveil — le maximum", hint: "8 quêtes / jour" },
     ],
   },
 ];
@@ -724,3 +778,118 @@ const EVENTS = [
   { name: "Gratitude", ico: "light", quests: [["Noter 3 gratitudes", "Même les plus petites", "MEN"], ["Remercier quelqu'un", "De vive voix ou par écrit", "SOC"]] },
   { name: "Bilan du héros", ico: "trophy", quests: [["Écrire une leçon de l'année", "Ce que tu ne veux plus jamais oublier", "MEN"], ["Un acte de générosité", "Du temps, un don, un service", "SOC"]] },
 ];
+
+// Films et séries conseillés (avec la raison du conseil).
+const MEDIA = [
+  { kind: "Film", title: "Rocky", year: 1976, stat: "DIS", why: "Courir à l'aube, monter les marches : la discipline avant la gloire." },
+  { kind: "Film", title: "À la recherche du bonheur", year: 2006, stat: "COU", why: "Un père qui ne lâche rien, même à la rue. Une leçon de persévérance." },
+  { kind: "Film", title: "Whiplash", year: 2014, stat: "DIS", why: "Le prix de l'excellence, et ses limites. Ça donne envie de bosser." },
+  { kind: "Film", title: "Le Cercle des poètes disparus", year: 1989, stat: "SAV", why: "Carpe diem : penser par soi-même et oser sa vie." },
+  { kind: "Film", title: "Into the Wild", year: 2007, stat: "MEN", why: "Le sens, la liberté, et ce qui compte vraiment." },
+  { kind: "Film", title: "Soul", year: 2020, stat: "FOI", why: "Ce qui donne du sens à une vie n'est pas toujours ce qu'on croit." },
+  { kind: "Film", title: "Free Solo", year: 2018, stat: "COU", why: "Documentaire : maîtriser sa peur, une prise après l'autre." },
+  { kind: "Film", title: "Karaté Kid", year: 1984, stat: "DIS", why: "Cirer, poncer : les petites répétitions construisent le maître." },
+  { kind: "Série", title: "Haikyū!!", year: 2014, stat: "SOC", why: "Anime : progresser en équipe, transformer ses défauts en forces." },
+  { kind: "Série", title: "Vinland Saga", year: 2019, stat: "MEN", why: "Anime : de la colère à la paix intérieure. Un vrai chemin de vie." },
+  { kind: "Série", title: "Blue Lock", year: 2022, stat: "COU", why: "Anime : l'ego, la confiance et l'envie de devenir le meilleur." },
+  { kind: "Série", title: "Le Jeu de la dame", year: 2020, stat: "SAV", why: "Une prodige des échecs face à ses démons. Travail et talent." },
+  { kind: "Série", title: "Ted Lasso", year: 2020, stat: "SOC", why: "La gentillesse comme superpouvoir. Fait du bien au moral." },
+  { kind: "Série", title: "Hajime no Ippo", year: 2000, stat: "FOR", why: "Anime : un garçon timide devient boxeur à force d'entraînement." },
+];
+// Livre conseillé selon le point faible.
+const BOOK_FOR = { FOR: "goggins", MEN: "mindset", ENE: "why", SOC: "carnegie", SAV: "deepwork", COU: "goggins", FOI: "frankl", DIS: "atomic" };
+
+// ---------- Programmes sportifs (3 séances type par sport) ----------
+const SPORT_NAMES = { muscu: "Musculation", calisth: "Street workout", run: "Course à pied", walk: "Marche et rando", foot: "Football", basket: "Basket", combat: "Sports de combat", swim: "Natation", bike: "Vélo", racket: "Raquette", climb: "Escalade", yoga: "Yoga et pilates", dance: "Danse", home: "Sport à la maison", other: "Ton sport" };
+const SPORT_PLANS = {
+  muscu: [["Haut du corps", ["Échauffement 5 min", "Développé couché 4×8", "Rowing haltère 4×10", "Développé militaire 3×10", "Tractions assistées 3×max", "Gainage 3×40 s"]],
+    ["Bas du corps", ["Échauffement 5 min", "Squat 4×8", "Soulevé de terre roumain 4×10", "Fentes 3×12 par jambe", "Mollets 4×15", "Gainage latéral 3×30 s"]],
+    ["Full body", ["Échauffement 5 min", "Goblet squat 3×12", "Pompes 3×max", "Rowing 3×12", "Hip thrust 3×12", "Farmer walk 3×30 m"]]],
+  calisth: [["Tirage", ["Suspension 3×30 s", "Tractions 5×max", "Australian rows 3×12", "Chin-ups négatives 3×5"]],
+    ["Poussée", ["Pompes 5×max", "Dips 4×max", "Pike push-ups 3×8", "Pompes diamant 3×10"]],
+    ["Jambes et gainage", ["Squats 4×20", "Fentes sautées 3×10", "Hollow hold 3×30 s", "L-sit 5×10 s"]]],
+  run: [["Footing", ["10 min de marche rapide", "20 à 30 min de course lente (tu peux parler)", "5 min d'étirements"]],
+    ["Fractionné", ["10 min d'échauffement", "8 × 30 s rapide / 1 min lent", "10 min de retour au calme"]],
+    ["Sortie longue", ["Course lente 40 à 60 min", "Hydratation", "Étirements 10 min"]]],
+  walk: [["Marche active", ["45 min à bon rythme", "Grandes foulées, bras actifs"]], ["Dénivelé", ["Monter des escaliers ou une côte 20 min", "Descente contrôlée"]], ["Rando", ["Sortie de 2 h en nature", "Sac léger, eau, encas"]]],
+  foot: [["Technique", ["Jongles : bats ton record", "Conduite de balle en slalom 10 min", "Passes contre un mur 10 min"]], ["Physique", ["Sprints 10×20 m", "Changements de direction 6×", "Gainage 3×45 s"]], ["Finition", ["Frappes pied faible 30 tirs", "Frappes pied fort 30 tirs", "Petit match ou five"]]],
+  basket: [["Tir", ["100 tirs à mi-distance", "50 lancers francs (note ton %)"]], ["Dribble", ["Dribble main faible 10 min", "Crossovers 5 min", "Dribble yeux fermés 3 min"]], ["Physique", ["Sauts 5×10", "Sprints terrain 10×", "Défense en pas chassés 5×30 s"]]],
+  combat: [["Technique", ["Corde à sauter 3×3 min", "Shadow 4×3 min", "Combinaisons au sac 4×3 min"]], ["Cardio", ["Burpees 5×10", "Sac en continu 5×1 min", "Gainage 3×1 min"]], ["Force", ["Pompes 4×15", "Squats sautés 4×12", "Rotation de buste au médecine-ball 3×15"]]],
+  swim: [["Endurance", ["200 m d'échauffement", "4×100 m crawl tranquille", "100 m dos de récupération"]], ["Technique", ["Éducatifs de bras 6×50 m", "Battements avec planche 4×50 m"]], ["Vitesse", ["8×25 m rapide", "Récupération 30 s entre chaque"]]],
+  bike: [["Balade", ["45 min à allure confortable"]], ["Côtes", ["5 montées en danseuse", "Descentes en récupération"]], ["Sortie longue", ["1 h 30 à rythme régulier", "Boire toutes les 15 min"]]],
+  racket: [["Technique", ["Coup droit 10 min", "Revers 10 min", "Service 30 balles"]], ["Jeu de jambes", ["Pas chassés 5×30 s", "Fentes latérales 3×12"]], ["Match", ["Échauffement 10 min", "Un set ou un match"]]],
+  climb: [["Bloc", ["Échauffement sur voies faciles", "5 blocs de ton niveau", "2 essais au-dessus"]], ["Force", ["Suspension 6×10 s", "Tractions 4×max", "Gainage 3×45 s"]], ["Technique", ["Grimper en silence (pieds précis)", "Traversées 4×"]]],
+  yoga: [["Réveil", ["Salutation au soleil ×5", "Chien tête en bas 1 min", "Posture de l'enfant 1 min"]], ["Souplesse", ["Pince assise 2 min", "Pigeon 1 min par côté", "Torsions 1 min"]], ["Force", ["Planche 1 min", "Guerrier II 1 min par côté", "Chaise 45 s"]]],
+  dance: [["Bases", ["Échauffement articulaire 5 min", "Pas de base 15 min", "Étirements"]], ["Chorégraphie", ["Apprendre 8 temps", "Les répéter 10 fois", "Te filmer"]], ["Freestyle", ["3 morceaux en improvisation", "Varier les niveaux (haut, bas)"]]],
+  home: [["Cardio", ["Jumping jacks 4×40 s", "Montées de genoux 4×30 s", "Burpees 3×10"]], ["Renfo", ["Pompes 4×max", "Squats 4×20", "Fentes 3×12", "Gainage 3×45 s"]], ["Mobilité", ["Rotations articulaires 5 min", "Étirements 15 min"]]],
+  other: [["Technique", ["Échauffement 10 min", "Travail technique 20 min", "Retour au calme"]], ["Physique", ["Cardio 15 min", "Renforcement 15 min"]], ["Pratique", ["Séance ou match", "Note ce que tu as appris"]]],
+};
+
+// ---------- Nutrition ----------
+const NUTRI_TIPS = {
+  lose: ["Une assiette : ½ légumes, ¼ protéines, ¼ féculents.", "Bois un grand verre d'eau avant chaque repas.", "Pas de boisson sucrée : c'est le plus gros gain.", "Marche 10 à 30 min après le repas du soir."],
+  muscle: ["Vise 1,6 g de protéines par kilo de poids de corps par jour.", "Une source de protéines à chaque repas.", "Ne saute pas le petit-déjeuner après l'entraînement.", "Dors 7 à 9 h : c'est la nuit que le muscle se construit."],
+  energy: ["Petit-déjeuner avec protéines plutôt que sucre.", "Fruits et légumes à chaque repas.", "Évite le gros repas lourd le midi.", "1,5 à 2 L d'eau par jour."],
+  default: ["Mange lentement, sans écran.", "Cuisine maison le plus souvent possible.", "Des légumes à chaque repas.", "Limite les produits ultra-transformés."],
+};
+// Recettes simples, sans porc ni alcool.
+const RECIPES = [
+  { name: "Omelette protéinée", time: 10, tags: ["Protéiné", "Rapide"], ing: ["3 œufs", "1 poignée d'épinards", "40 g de feta", "Sel, poivre"], steps: ["Battre les œufs", "Faire revenir les épinards 1 min", "Verser les œufs, ajouter la feta", "Plier quand c'est pris"] },
+  { name: "Bowl poulet riz légumes", time: 25, tags: ["Protéiné", "Prise de masse"], ing: ["150 g de poulet", "80 g de riz", "1 courgette", "Sauce soja, citron"], steps: ["Cuire le riz", "Poêler le poulet en dés", "Ajouter la courgette en rondelles", "Servir avec soja et citron"] },
+  { name: "Overnight oats", time: 5, tags: ["Petit-déj", "Énergie"], ing: ["50 g de flocons d'avoine", "150 g de skyr ou yaourt", "Lait", "Fruits rouges"], steps: ["Tout mélanger dans un bocal", "Une nuit au frigo", "Ajouter les fruits le matin"] },
+  { name: "Dahl de lentilles corail", time: 25, tags: ["Végétarien", "Pas cher"], ing: ["150 g de lentilles corail", "1 brique de lait de coco", "1 oignon", "Curry, cumin"], steps: ["Faire revenir l'oignon et les épices", "Ajouter lentilles, coco et 300 ml d'eau", "Cuire 15 min en remuant"] },
+  { name: "Salade de thon complète", time: 10, tags: ["Rapide", "Perte de poids"], ing: ["1 boîte de thon", "Pois chiches", "Tomates, concombre", "Huile d'olive, citron"], steps: ["Couper les légumes", "Mélanger avec thon et pois chiches", "Assaisonner"] },
+  { name: "Saumon au four et patate douce", time: 30, tags: ["Oméga-3", "Énergie"], ing: ["1 pavé de saumon", "1 patate douce", "Brocoli", "Huile d'olive, paprika"], steps: ["Couper la patate douce en cubes", "Four 200 °C 15 min", "Ajouter saumon et brocoli, 12 min de plus"] },
+  { name: "Wrap dinde avocat", time: 8, tags: ["Rapide", "Protéiné"], ing: ["1 galette complète", "Tranches de dinde", "½ avocat", "Salade, tomate"], steps: ["Écraser l'avocat sur la galette", "Garnir", "Rouler serré"] },
+  { name: "Shakshuka", time: 20, tags: ["Végétarien", "Pas cher"], ing: ["4 œufs", "1 boîte de tomates", "1 poivron", "Cumin, paprika"], steps: ["Faire revenir poivron et épices", "Ajouter les tomates, laisser réduire 8 min", "Creuser 4 puits, casser les œufs, couvrir 5 min"] },
+  { name: "Smoothie récup'", time: 5, tags: ["Après sport", "Rapide"], ing: ["1 banane", "200 ml de lait", "1 c. à soupe de beurre de cacahuète", "Flocons d'avoine"], steps: ["Tout mixer", "Boire dans l'heure après l'entraînement"] },
+  { name: "Poêlée de légumes et œufs", time: 15, tags: ["Perte de poids", "Végétarien"], ing: ["Légumes de saison", "2 œufs", "Ail, herbes"], steps: ["Poêler les légumes 8 min", "Ajouter les œufs brouillés", "Assaisonner"] },
+];
+
+// ---------- Choix du camp : Lumière ou Ombre ----------
+const PATHS = {
+  light: { name: "Voie de la Lumière", icon: "light", color: "#fbbf24", motto: "Le pouvoir par le lien, la bienveillance et l'exemple.",
+    quests: [["Écoute active : reformule ce qu'on te dit", "Avant de donner ton avis", "SOC", 20], ["Aide quelqu'un sans rien attendre", "Discret, sincère", "SOC", 20], ["Exprime une émotion avec calme", "« Je ressens… parce que… »", "MEN", 20]] },
+  shadow: { name: "Voie de l'Ombre", icon: "blade", color: "#a855f7", motto: "Le pouvoir par la maîtrise de soi, la lucidité et la stratégie.",
+    quests: [["Silence stratégique : 3 secondes avant de répondre", "Le silence donne du poids à tes mots", "MEN", 20], ["Dis non une fois, sans te justifier", "« Non, ça ne me convient pas. » Point.", "COU", 25], ["Repère une technique d'influence", "Dans une pub, une vidéo ou une discussion", "SAV", 20]] },
+};
+// Arts de l'Ombre : comprendre, maîtriser, se protéger. Arts de la Lumière : rayonner.
+const ARTS = {
+  shadow: [
+    ["Le regard", "Un regard stable et calme impose la présence. Tiens le contact visuel 3 à 5 secondes, puis détourne lentement.", "Si quelqu'un te fixe pour te déstabiliser, respire, regarde entre ses sourcils et reste neutre : la pression disparaît."],
+    ["Le silence", "Celui qui parle trop se dévoile. Après une question importante, tais-toi et laisse l'autre combler le silence.", "Face à un silence gênant en négociation, ne fais pas de concession pour le remplir. Attends."],
+    ["La rareté", "Ce qui est rare paraît précieux. Ne sois pas disponible pour tout le monde, tout le temps.", "« Plus que 2 places », « offre limitée » : quand on te presse, prends 24 h avant de décider."],
+    ["La réciprocité", "Un petit cadeau crée une dette. Donne en premier, c'est la base de l'influence.", "Un cadeau suivi d'une demande ? Tu as le droit de remercier et de refuser quand même."],
+    ["L'ancrage", "Le premier chiffre posé oriente toute la discussion. En négociation, ancre haut et justifie.", "Ignore le premier prix annoncé. Cherche le vrai prix ailleurs avant de répondre."],
+    ["Le cadrage", "Une même chose dite autrement change tout : « 90 % de réussite » rassure plus que « 10 % d'échec ».", "Reformule toujours la proposition dans l'autre sens avant de dire oui."],
+    ["Lire les corps", "Bras croisés, pieds tournés vers la sortie, sourire qui n'atteint pas les yeux : les corps parlent avant les mots.", "Sois prudent : un seul signe ne veut rien dire. Cherche des groupes de signaux."],
+    ["Le contrôle émotionnel", "Qui garde son calme garde le pouvoir. Ralentis ta voix et ta respiration quand la tension monte.", "Si quelqu'un cherche à te faire réagir, c'est qu'il veut que tu perdes le contrôle. Ne lui donne pas."],
+    ["Repérer la manipulation", "Culpabilisation, flatterie soudaine, urgence, « si tu m'aimais vraiment… » : ce sont des leviers connus.", "Nomme-le calmement (« Je sens de la pression, je vais réfléchir ») et éloigne-toi des personnes qui l'utilisent souvent."],
+  ],
+  light: [
+    ["L'écoute", "Les gens se souviennent de comment tu les as fait se sentir. Écoute pour comprendre, pas pour répondre.", "Pose une deuxième question sur ce que la personne vient de dire."],
+    ["La gratitude", "Remercier précisément crée des liens forts.", "Dis à quelqu'un exactement ce qu'il a fait et pourquoi ça t'a aidé."],
+    ["L'exemple", "On suit ceux qui font, pas ceux qui disent.", "Fais avant de demander aux autres de faire."],
+    ["La vulnérabilité", "Avouer une faiblesse avec calme inspire confiance.", "Partage un échec et ce que tu en as appris."],
+    ["La générosité", "Donner sans compter attire les bonnes personnes.", "Un service par jour, sans le crier."],
+  ],
+};
+// Forces et faiblesses par type MBTI, et le camp conseillé.
+const MBTI_TRAITS = {
+  INTJ: [["Vision à long terme", "Stratégie"], ["Impatience avec les autres", "Froideur perçue"], "shadow"],
+  INTP: [["Analyse", "Créativité intellectuelle"], ["Procrastination", "Passage à l'action"], "shadow"],
+  ENTJ: [["Leadership", "Décision"], ["Autoritarisme", "Écoute"], "shadow"],
+  ENTP: [["Répartie", "Idées neuves"], ["Dispersion", "Suivi des projets"], "shadow"],
+  INFJ: [["Intuition des gens", "Sens profond"], ["Épuisement social", "Perfectionnisme"], "light"],
+  INFP: [["Empathie", "Imagination"], ["Discipline", "Affirmation de soi"], "light"],
+  ENFJ: [["Charisme bienveillant", "Motivation des autres"], ["S'oublier soi-même", "Dire non"], "light"],
+  ENFP: [["Enthousiasme", "Connexion aux autres"], ["Régularité", "Finir ce qui est commencé"], "light"],
+  ISTJ: [["Fiabilité", "Rigueur"], ["Rigidité", "Expression des émotions"], "shadow"],
+  ISFJ: [["Loyauté", "Attention aux autres"], ["Dire non", "Prendre sa place"], "light"],
+  ESTJ: [["Organisation", "Efficacité"], ["Écoute", "Souplesse"], "shadow"],
+  ESFJ: [["Chaleur", "Esprit d'équipe"], ["Besoin d'approbation", "Critique"], "light"],
+  ISTP: [["Sang-froid", "Débrouillardise"], ["Engagement long terme", "Communication"], "shadow"],
+  ISFP: [["Sensibilité", "Authenticité"], ["Confrontation", "Planification"], "light"],
+  ESTP: [["Audace", "Adaptation"], ["Patience", "Réflexion avant d'agir"], "shadow"],
+  ESFP: [["Énergie", "Aisance sociale"], ["Constance", "Vision à long terme"], "light"],
+};
